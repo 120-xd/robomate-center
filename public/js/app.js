@@ -135,7 +135,7 @@ const App = (() => {
                 els.listeningWave.classList.remove('hidden');
                 els.progressContainer.classList.add('hidden');
                 els.mainTip.innerText = '语音控制就绪';
-                els.subTip.innerText = '使用方向键控制机器人，或点击麦克风语音控制';
+                els.subTip.innerText = '点击麦克风语音控制，或在下方输入自然语言指令';
                 els.statusDot.className = 'w-2 h-2 rounded-full bg-blue-500';
                 els.connectionLabel.innerText = '已就绪';
                 els.robotStatusText.innerText = '在线 - 聆听中';
@@ -324,8 +324,8 @@ const App = (() => {
         }
     }
 
-    // ========== Send Command ==========
-    async function sendCommand(cmd) {
+    // ========== Raw Command Send (single direct command) ==========
+    async function sendRawCommand(cmd) {
         if (!cmd) return;
         cmd = cmd.toUpperCase().trim();
         if (!cmd) return;
@@ -335,10 +335,7 @@ const App = (() => {
                 await SerialCore.sendCommand(cmd);
                 writeToTerminal(`SEND: ${cmd}`, true);
                 showDirection(cmd);
-
-                // Log to backend
                 apiPost('/commands', { command: cmd, source: 'manual' });
-
             } catch (e) {
                 writeToTerminal('ERROR: 发送失败 - ' + e.message);
             }
@@ -349,35 +346,70 @@ const App = (() => {
         }
     }
 
-    // ========== Voice via Backend ==========
+    // Check if text looks like a raw command (e.g. "FW 3", "HOME", "MW")
+    function isRawCommand(text) {
+        return /^(FW|BW|LT|RT|MW|HOME)(\s+\d+)?$/i.test(text.trim());
+    }
+
+    // ========== Smart Text Command (text input → maybe AI → execute) ==========
+    async function sendTextCommand(text) {
+        if (!text) return;
+        text = text.trim();
+        if (!text) return;
+
+        // If it's already a raw command, send directly
+        if (isRawCommand(text)) {
+            await sendRawCommand(text);
+            return;
+        }
+
+        // Otherwise, route through AI
+        els.mainTip.innerText = 'AI 正在理解...';
+        writeToTerminal(`AI: "${text}"`, true);
+        await sendToAI(text, 'text');
+    }
+
+    // ========== Voice → AI → Execute ==========
     async function sendVoiceCommand(text) {
         if (!text) return;
         writeToTerminal(`VOICE: "${text}"`, true);
+        await sendToAI(text, 'voice');
+    }
 
-        // Send to backend for parsing
+    // Shared: send text to backend AI, then execute returned commands
+    async function sendToAI(text, source) {
         const result = await apiPost('/voice/command', { text });
 
-        if (result && result.command) {
-            writeToTerminal(`PARSED: "${text}" → ${result.command}`, true);
-            await sendCommand(result.command);
-            apiPost('/commands', { command: result.command, source: 'voice', rawVoiceText: text });
-        } else if (result) {
-            writeToTerminal(`WARN: 无法理解指令 "${text}"`);
-            els.mainTip.innerText = '未识别的指令: ' + text;
+        if (result && result.commands && result.commands.length > 0) {
+            // Backend returned parsed commands
+            writeToTerminal(`AI: "${text}" → [${result.commands.map(c => c.cmd).join(', ')}]`, true);
+            els.mainTip.innerText = `AI 理解: ${result.commands.map(c => c.cmd).join(' → ')}`;
+
+            for (const item of result.commands) {
+                await sendRawCommand(item.cmd);
+                // Small delay between commands so robot doesn't skip
+                await new Promise(r => setTimeout(r, 300));
+            }
+            apiPost('/commands', { command: result.commands.map(c => c.cmd).join(','), source, rawVoiceText: text });
+            els.mainTip.innerText = '语音控制就绪';
+        } else if (result && result.error) {
+            writeToTerminal(`AI ERROR: ${result.error}`);
+            els.mainTip.innerText = 'AI 理解失败: ' + result.error;
         } else {
-            // Backend not available — use local fallback parsing
+            // Backend not available — use local fallback
+            writeToTerminal('WARN: 后端不可用，使用本地解析');
             const cmd = localParseVoice(text);
             if (cmd) {
                 writeToTerminal(`LOCAL: "${text}" → ${cmd}`);
-                await sendCommand(cmd);
+                await sendRawCommand(cmd);
             } else {
-                writeToTerminal(`WARN: 无法理解指令 "${text}"`);
-                els.mainTip.innerText = '未识别的指令: ' + text;
+                writeToTerminal(`WARN: 无法理解 "${text}"`);
+                els.mainTip.innerText = '无法理解: ' + text;
             }
         }
     }
 
-    // Fallback local voice parsing (same logic as backend)
+    // Fallback local voice parsing
     function localParseVoice(text) {
         const t = text.replace(/[，。！？、\s]/g, '').toLowerCase();
         if (/前进|向前|往前|直走|走/.test(t)) {
@@ -467,7 +499,7 @@ const App = (() => {
         if (els.micIndicator) els.micIndicator.innerText = '';
         if (state.ready) {
             els.mainTip.innerText = '语音控制就绪';
-            els.subTip.innerText = '使用方向键控制机器人，或点击麦克风语音控制';
+            els.subTip.innerText = '点击麦克风语音控制，或在下方输入自然语言指令';
         }
     }
 
@@ -490,11 +522,11 @@ const App = (() => {
         els.btnBurn.addEventListener('click', startBurning);
         if (els.btnMic) els.btnMic.addEventListener('click', toggleMic);
 
-        // Enter key in input
+        // Enter key in input — route through AI
         if (els.cmdInput) {
             els.cmdInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
-                    sendCommand(els.cmdInput.value.trim());
+                    sendTextCommand(els.cmdInput.value.trim());
                     els.cmdInput.value = '';
                 }
             });
@@ -507,7 +539,8 @@ const App = (() => {
         writeToTerminal('// RoboMate-X1 控制中心 v1.0');
         writeToTerminal('// 固件: 四舵机串口指令控制 (D2/D3/D10/D11)');
         writeToTerminal('// 指令: FW N | BW N | LT N | RT N | MW | HOME');
-        writeToTerminal('// 点击「连接 USB」开始 → 同步 → 烧录 → 控制');
+        writeToTerminal('// 支持自然语言: 前进3步 / 左转然后后退 / 太空步');
+        writeToTerminal('// 点击「连接 USB」开始 → 同步 → 烧录 → 语音控制');
     }
 
     // ========== Public API ==========
@@ -515,7 +548,8 @@ const App = (() => {
         init,
         toggleConnect,
         startBurning,
-        sendCommand,
+        sendCommand: sendRawCommand,
+        sendTextCommand,
         sendVoiceCommand,
         toggleMic,
         writeToTerminal

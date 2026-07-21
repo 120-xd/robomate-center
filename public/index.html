@@ -110,45 +110,15 @@
 <span class="text-[10px] text-blue-500" id="micIndicator"></span>
 </button>
 
-<!-- 方向控制组 -->
-<div class="flex items-center gap-4 transition-opacity duration-500 opacity-30 pointer-events-none" id="actionGroup">
+<!-- 指令控制组 -->
+<div class="flex items-center gap-3 transition-opacity duration-500 opacity-30 pointer-events-none" id="actionGroup">
 
-<!-- 方向键 -->
-<div class="grid grid-cols-3 gap-1.5">
-<div></div>
-<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('FW 1')" title="前进 1 步">
-<iconify-icon icon="solar:arrow-up-bold-duotone"></iconify-icon>
-</button>
-<div></div>
-<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('LT 1')" title="左转 1 步">
-<iconify-icon icon="solar:arrow-left-bold-duotone"></iconify-icon>
-</button>
-<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('HOME')" title="归中">
-<iconify-icon icon="solar:home-bold-duotone"></iconify-icon>
-</button>
-<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('RT 1')" title="右转 1 步">
-<iconify-icon icon="solar:arrow-right-bold-duotone"></iconify-icon>
-</button>
-<div></div>
-<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('BW 1')" title="后退 1 步">
-<iconify-icon icon="solar:arrow-down-bold-duotone"></iconify-icon>
-</button>
-<div></div>
-</div>
-
-<!-- 快捷动作 -->
-<div class="flex flex-col gap-2 ml-2">
-<button class="px-4 py-2 rounded-full glass text-xs font-medium text-gray-700 hover:bg-white cmd-btn" onclick="App.sendCommand('FW 3')">前进 x3</button>
-<button class="px-4 py-2 rounded-full glass text-xs font-medium text-gray-700 hover:bg-white cmd-btn" onclick="App.sendCommand('BW 3')">后退 x3</button>
-<button class="px-4 py-2 rounded-full glass text-xs font-medium text-gray-700 hover:bg-white cmd-btn" onclick="App.sendCommand('MW')">太空步</button>
-</div>
-
-<!-- 自定义指令输入 -->
-<div class="flex items-center gap-2 ml-3">
-<input type="text" id="cmdInput" placeholder="输入指令..."
-    class="w-28 px-3 py-2 rounded-full glass text-sm text-gray-700 placeholder-gray-400 outline-none border-0">
+<!-- 宽指令输入 -->
+<div class="flex items-center gap-2">
+<input type="text" id="cmdInput" placeholder="输入指令或自然语言, 如: 前进3步 / 左转 / 太空步..."
+    class="w-80 px-5 py-3 rounded-full glass text-sm text-gray-700 placeholder-gray-400 outline-none border-0">
 <button class="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white cmd-btn text-gray-700"
-    onclick="const inp=document.getElementById('cmdInput'); App.sendCommand(inp.value.trim()); inp.value='';">
+    onclick="const inp=document.getElementById('cmdInput'); App.sendTextCommand(inp.value.trim()); inp.value='';">
 <iconify-icon icon="solar:plain-2-bold-duotone"></iconify-icon>
 </button>
 </div>

@@ -239,17 +239,18 @@ const App = (() => {
     }
 
     // ========== Model Management ==========
+    let welcomeShown = false;
+
     async function loadModels() {
         try {
             const resp = await fetch(state.apiBase + '/models');
             const result = await resp.json();
             if (result && result.models) {
                 populateModelSelector(result.models, result.active);
-                // Load active model details
                 await refreshActiveModel();
+                showWelcomeMessage();
             }
         } catch (e) {
-            // Backend not available — no model switching
             els.modelSelect.innerHTML = '<option>X1</option>';
         }
     }
@@ -272,11 +273,19 @@ const App = (() => {
             const model = await resp.json();
             if (model && model.id) {
                 state.activeModel = model;
-                if (els.modelName) els.modelName.textContent = model.name;
-                addChatMessage('system', `当前机型: ${model.name}（${model.type === 'humanoid' ? '人形' : model.type === 'vehicle' ? '小车' : model.type}）`);
+                refreshModelUI();
             }
         } catch (e) {
             // Backend not available
+        }
+    }
+
+    function refreshModelUI() {
+        if (!state.activeModel) return;
+        if (els.modelName) els.modelName.textContent = state.activeModel.name;
+        // Update subTip if in disconnected state (before connection)
+        if (!state.connected) {
+            els.subTip.innerText = `请先通过 USB 数据线连接您的 ${state.activeModel.name}`;
         }
     }
 
@@ -291,12 +300,25 @@ const App = (() => {
             const result = await resp.json();
             if (result.success) {
                 state.activeModel = result.model;
-                if (els.modelName) els.modelName.textContent = result.model.name;
-                addChatMessage('system', `已切换到: ${result.model.name}`);
+                refreshModelUI();
+                welcomeShown = false; // allow new welcome for new model
+                showWelcomeMessage();
             }
         } catch (e) {
             addChatMessage('system', '切换机型失败');
         }
+    }
+
+    function showWelcomeMessage() {
+        if (welcomeShown) return;
+        if (!state.activeModel) return;
+        welcomeShown = true;
+        const label = getModelLabel();
+        const name = state.activeModel.name;
+        const hint = state.activeModel.type === 'vehicle'
+            ? '试试说「启动」开始避障，或「前进」「左转」手动控制'
+            : '试试说「前进三步」或「跳个舞」吧';
+        addChatMessage('ai', `你好！我是${label}，你的${name}助手～连接 USB 并烧录固件后，就可以语音控制机器人啦！${hint}！`);
     }
 
     // ========== Connection Flow ==========
@@ -664,15 +686,7 @@ const App = (() => {
             });
         }
 
-        // Welcome message (deferred until model loaded)
-        setTimeout(() => {
-            const label = getModelLabel();
-            const name = getModelDisplayName();
-            const hint = state.activeModel?.type === 'vehicle'
-                ? '试试说「启动」开始避障，或「前进」「左转」手动控制'
-                : '试试说「前进三步」或「跳个舞」吧';
-            addChatMessage('ai', `你好！我是${label}，你的${name}助手～连接 USB 并烧录固件后，就可以语音控制机器人啦！${hint}！`);
-        }, 500);
+        // Welcome message is shown by loadModels() after model data arrives
     }
 
     // ========== Public API ==========

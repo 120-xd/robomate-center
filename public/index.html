@@ -17,7 +17,10 @@
 <iconify-icon class="text-2xl text-gray-700" icon="solar:robot-bold-duotone"></iconify-icon>
 </div>
 <div>
-<h1 class="text-sm font-semibold text-gray-800">RoboMate-X1</h1>
+<div class="flex items-center gap-2">
+<h1 class="text-sm font-semibold text-gray-800" id="modelName">RoboMate-X1</h1>
+<select id="modelSelect" class="text-[10px] bg-transparent border border-gray-300 rounded-full px-2 py-0.5 text-gray-500 outline-none cursor-pointer hover:border-blue-400 transition-colors"></select>
+</div>
 <p class="text-[10px] text-gray-500 tracking-wider uppercase" id="robotStatusText">未连接</p>
 </div>
 </div>
@@ -74,14 +77,14 @@
 <section class="w-full max-w-5xl flex flex-col gap-6">
 
 <!-- 对话面板 -->
-<div class="glass rounded-2xl overflow-hidden flex flex-col h-72 shadow-xl">
-<div class="bg-white/60 px-5 py-3 flex items-center gap-2 border-b border-white/30">
-<iconify-icon class="text-lg text-blue-500" icon="solar:chat-dots-bold-duotone"></iconify-icon>
-<span class="text-sm font-semibold text-gray-700">对话记录</span>
-<span class="text-[10px] text-gray-400 ml-auto">小X1 AI 助手</span>
+<div class="terminal-glass rounded-xl overflow-hidden flex flex-col h-72 shadow-2xl">
+<div class="bg-white/5 px-4 py-2 flex items-center gap-1.5 border-b border-white/10">
+<div class="w-2.5 h-2.5 rounded-full bg-red-400/80"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-yellow-400/80"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-green-400/80"></div>
 </div>
 <div class="flex-1 p-4 overflow-y-auto hide-scrollbar flex flex-col gap-3" id="chatPanel">
-<div class="text-center text-xs text-gray-400 py-2">系统就绪，等待连接机器人...</div>
+<div class="text-center text-xs text-white/25 py-2">系统就绪，等待连接机器人...</div>
 </div>
 </div>
 

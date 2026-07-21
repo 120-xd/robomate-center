@@ -7,6 +7,7 @@ const path = require('path');
 const logger = require('./services/logger');
 const requestLogger = require('./middleware/requestLogger');
 const voiceService = require('./services/voice');
+const profileManager = require('./services/profileManager');
 const db = require('./db');
 
 const app = express();
@@ -52,11 +53,15 @@ async function start() {
     await db.initDb();
     logger.info('Database: SQLite initialized (sql.js)');
 
+    // Load robot profiles
+    profileManager.loadAll();
+
     app.listen(PORT, () => {
         logger.info('========================================');
         logger.info('  RoboMate-X1 Control Center v1.0');
         logger.info(`  http://localhost:${PORT}`);
         logger.info(`  Environment: ${process.env.NODE_ENV || 'development'}`);
+        logger.info(`  Models: ${profileManager.list().map(m => m.id).join(', ')} (active: ${profileManager.activeId})`);
         logger.info('========================================');
 
         // Check voice service

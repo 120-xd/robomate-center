@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const logger = require('../services/logger');
+const profileManager = require('../services/profileManager');
 
 // GET /api/health - health check
 router.get('/health', (req, res) => {
@@ -79,6 +80,63 @@ router.post('/events', (req, res) => {
     } catch (e) {
         logger.error('Failed to log event', { error: e.message });
         res.status(500).json({ error: e.message });
+    }
+});
+
+// ========== Model Management ==========
+
+// GET /api/models - list all available robot models
+router.get('/models', (req, res) => {
+    try {
+        const models = profileManager.list();
+        res.json({ models, active: profileManager.activeId });
+    } catch (e) {
+        logger.error('Failed to list models', { error: e.message });
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET /api/models/active - get current active model
+router.get('/models/active', (req, res) => {
+    try {
+        const profile = profileManager.getActive();
+        if (!profile) return res.status(404).json({ error: 'No active model' });
+        res.json({
+            id: profile.id,
+            name: profile.name,
+            type: profile.type,
+            description: profile.description,
+            commands: profile.commands,
+            firmware: profile.firmware
+        });
+    } catch (e) {
+        logger.error('Failed to get active model', { error: e.message });
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/models/select - switch active model
+router.post('/models/select', (req, res) => {
+    try {
+        const { modelId } = req.body;
+        if (!modelId) return res.status(400).json({ error: 'modelId is required' });
+
+        const profile = profileManager.setActive(modelId);
+        logger.info(`Model switched to: ${modelId} (${profile.name})`);
+        res.json({
+            success: true,
+            model: {
+                id: profile.id,
+                name: profile.name,
+                type: profile.type,
+                description: profile.description,
+                commands: profile.commands,
+                firmware: profile.firmware
+            }
+        });
+    } catch (e) {
+        logger.error('Failed to switch model', { error: e.message });
+        res.status(400).json({ error: e.message });
     }
 });
 

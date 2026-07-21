@@ -1,0 +1,56 @@
+{
+  "id": "x1",
+  "name": "RoboMate-X1",
+  "type": "humanoid",
+  "description": "四舵机人形机器人，可前进、后退、左右转、太空步、跳舞",
+  "hardware": {
+    "chip": "ATmega328P",
+    "protocol": "stk500v1",
+    "baudRate": 115200,
+    "communication": "串口 115200 baud，每条指令以换行符结束",
+    "components": [
+      { "name": "左腿", "pin": "D10", "type": "servo" },
+      { "name": "右腿", "pin": "D11", "type": "servo" },
+      { "name": "左脚", "pin": "D2", "type": "servo" },
+      { "name": "右脚", "pin": "D3", "type": "servo" }
+    ]
+  },
+  "commands": [
+    { "cmd": "FW",  "params": "1~20", "desc": "前进 N 步" },
+    { "cmd": "BW",  "params": "1~20", "desc": "后退 N 步" },
+    { "cmd": "LT",  "params": "1~20", "desc": "左转 N 步" },
+    { "cmd": "RT",  "params": "1~20", "desc": "右转 N 步" },
+    { "cmd": "MW",  "params": null,  "desc": "太空步（月球漫步）" },
+    { "cmd": "HOME","params": null,  "desc": "归中/停止/回到原点" }
+  ],
+  "commandFormat": "{CMD} {N}",
+  "commandValidation": "^(FW|BW|LT|RT)\\s+\\d{1,2}$|^(MW|HOME)$",
+  "firmware": "firmware/x1/robot_cmd.hex",
+  "semanticRules": {
+    "defaultSteps": 1,
+    "severalSteps": 3,
+    "maxSteps": 20,
+    "shortcuts": {
+      "前进":    ["FW {n}"],
+      "后退":    ["BW {n}"],
+      "左转":    ["LT {n}"],
+      "右转":    ["RT {n}"],
+      "转一圈":  ["RT 4"],
+      "转个圈":  ["RT 4"],
+      "旋转":    ["RT 4"],
+      "扭屁股":  ["LT 1", "RT 1", "LT 1", "RT 1"],
+      "摇摆":    ["LT 1", "RT 1", "LT 1", "RT 1"],
+      "晃晃":    ["LT 1", "RT 1", "LT 1", "RT 1"],
+      "跳舞":    ["MW"],
+      "跳个舞":  ["MW"],
+      "太空步":  ["MW"],
+      "月球漫步":["MW"],
+      "停下":    ["HOME"],
+      "站住":    ["HOME"],
+      "归位":    ["HOME"],
+      "回去":    ["HOME"],
+      "停":      ["HOME"]
+    }
+  },
+  "promptExtras": "X1 是给小学生玩的入门人形机器人，适合走路、转圈、跳舞等互动。它有四条舵机腿，可以做出各种有趣的动作。"
+}

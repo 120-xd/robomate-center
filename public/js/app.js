@@ -12,7 +12,8 @@ const App = (() => {
         burning: false,
         ready: false,
         currentDir: 'stop',
-        apiBase: '/api'  // backend API base URL
+        apiBase: '/api',  // backend API base URL
+        activeModel: null  // { id, name, type, commands, firmware }
     };
 
     // ========== DOM Cache ==========
@@ -42,7 +43,9 @@ const App = (() => {
             listeningWave: $('listeningWave'),
             cmdInput: $('cmdInput'),
             btnMic: $('btnMic'),
-            micIndicator: $('micIndicator')
+            micIndicator: $('micIndicator'),
+            modelName: $('modelName'),
+            modelSelect: $('modelSelect')
         };
     }
 
@@ -65,10 +68,12 @@ const App = (() => {
         const wrapper = document.createElement('div');
         wrapper.className = `chat-msg chat-msg-${type}`;
 
+        const modelLabel = getModelLabel();
+
         if (type === 'user') {
             wrapper.innerHTML = `<span class="chat-label">你</span><span class="chat-text">${escapeHtml(text)}</span>`;
         } else if (type === 'ai') {
-            wrapper.innerHTML = `<span class="chat-label">小X1</span><span class="chat-text">${escapeHtml(text)}</span>`;
+            wrapper.innerHTML = `<span class="chat-label">${modelLabel}</span><span class="chat-text">${escapeHtml(text)}</span>`;
         } else if (type === 'cmd') {
             wrapper.innerHTML = `<span class="chat-text">已执行: ${escapeHtml(text)}</span>`;
         } else {
@@ -91,6 +96,15 @@ const App = (() => {
         addChatMessage('system', text);
     }
 
+    // ========== Helpers ==========
+    function getModelDisplayName() {
+        return state.activeModel ? state.activeModel.name : 'RoboMate-X1';
+    }
+
+    function getModelLabel() {
+        return state.activeModel ? '小' + state.activeModel.id.toUpperCase() : '小X1';
+    }
+
     // ========== UI Modes ==========
     function setUIMode(mode) {
         switch (mode) {
@@ -100,7 +114,7 @@ const App = (() => {
                 els.processingBars.classList.add('hidden');
                 els.progressContainer.classList.add('hidden');
                 els.mainTip.innerText = '等待连接机器人';
-                els.subTip.innerText = '请先通过 USB 数据线连接您的 RoboMate-X1';
+                els.subTip.innerText = `请先通过 USB 数据线连接您的 ${getModelDisplayName()}`;
                 els.statusDot.className = 'w-2 h-2 rounded-full bg-gray-300';
                 els.connectionLabel.innerText = '离线状态';
                 els.robotStatusText.innerText = '未连接';
@@ -224,6 +238,69 @@ const App = (() => {
         }
     }
 
+    // ========== Model Management ==========
+    async function loadModels() {
+        try {
+            const data = await apiPost('/models', {});
+            // apiPost uses POST but we need GET — handle manually
+            const resp = await fetch(state.apiBase + '/models');
+            const result = await resp.json();
+            if (result && result.models) {
+                populateModelSelector(result.models, result.active);
+                // Load active model details
+                await refreshActiveModel();
+            }
+        } catch (e) {
+            // Backend not available — no model switching
+            els.modelSelect.innerHTML = '<option>X1</option>';
+        }
+    }
+
+    function populateModelSelector(models, activeId) {
+        if (!els.modelSelect) return;
+        els.modelSelect.innerHTML = '';
+        for (const m of models) {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            if (m.id === activeId) opt.selected = true;
+            els.modelSelect.appendChild(opt);
+        }
+    }
+
+    async function refreshActiveModel() {
+        try {
+            const resp = await fetch(state.apiBase + '/models/active');
+            const model = await resp.json();
+            if (model && model.id) {
+                state.activeModel = model;
+                if (els.modelName) els.modelName.textContent = model.name;
+                addChatMessage('system', `当前机型: ${model.name}（${model.type === 'humanoid' ? '人形' : model.type === 'vehicle' ? '小车' : model.type}）`);
+            }
+        } catch (e) {
+            // Backend not available
+        }
+    }
+
+    async function switchModel(modelId) {
+        if (!modelId || modelId === state.activeModel?.id) return;
+        try {
+            const resp = await fetch(state.apiBase + '/models/select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modelId })
+            });
+            const result = await resp.json();
+            if (result.success) {
+                state.activeModel = result.model;
+                if (els.modelName) els.modelName.textContent = result.model.name;
+                addChatMessage('system', `已切换到: ${result.model.name}`);
+            }
+        } catch (e) {
+            addChatMessage('system', '切换机型失败');
+        }
+    }
+
     // ========== Connection Flow ==========
     async function toggleConnect() {
         if (state.burning) return;
@@ -279,11 +356,16 @@ const App = (() => {
             writeToTerminal('========== 开始部署固件 ==========');
 
             // Fetch hex from server
+            // Use active model's firmware path
+            const firmwarePath = state.activeModel?.firmware
+                ? '/' + state.activeModel.firmware
+                : '/firmware/x1/robot_cmd.hex';
+
             let hexText;
             try {
-                const resp = await fetch('/firmware/robot_cmd.hex');
+                const resp = await fetch(firmwarePath);
                 hexText = await resp.text();
-                writeToTerminal('INFO: 从服务器加载固件', true);
+                writeToTerminal(`INFO: 加载固件 ${firmwarePath}`, true);
             } catch {
                 writeToTerminal('ERROR: 无法加载固件文件 /firmware/robot_cmd.hex');
                 throw new Error('固件文件加载失败');
@@ -571,8 +653,25 @@ const App = (() => {
         // Init speech recognition
         initSpeechRecognition();
 
-        // Welcome message
-        addChatMessage('ai', '你好！我是小X1，你的机器人助手～连接 USB 并烧录固件后，就可以语音控制机器人啦！试试说「前进三步」或「跳个舞」吧！');
+        // Load available robot models
+        loadModels();
+
+        // Wire up model selector
+        if (els.modelSelect) {
+            els.modelSelect.addEventListener('change', () => {
+                switchModel(els.modelSelect.value);
+            });
+        }
+
+        // Welcome message (deferred until model loaded)
+        setTimeout(() => {
+            const label = getModelLabel();
+            const name = getModelDisplayName();
+            const hint = state.activeModel?.type === 'vehicle'
+                ? '试试说「启动」开始避障，或「前进」「左转」手动控制'
+                : '试试说「前进三步」或「跳个舞」吧';
+            addChatMessage('ai', `你好！我是${label}，你的${name}助手～连接 USB 并烧录固件后，就可以语音控制机器人啦！${hint}！`);
+        }, 500);
     }
 
     // ========== Public API ==========

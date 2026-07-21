@@ -135,16 +135,15 @@ body {
 .chat-msg .chat-text {
     font-size: 14px;
     line-height: 1.7;
-    color: #1e293b;
 }
-.chat-msg-user .chat-label { color: #64748b; }
-.chat-msg-user .chat-text  { color: #334155; }
+.chat-msg-user .chat-label { color: #94a3b8; }
+.chat-msg-user .chat-text  { color: #e2e8f0; }
 
-.chat-msg-ai .chat-label { color: #2563eb; }
+.chat-msg-ai .chat-label { color: #60a5fa; }
 .chat-msg-ai .chat-text {
-    color: #1e293b;
-    background: rgba(37, 99, 235, 0.04);
-    border-left: 2px solid rgba(37, 99, 235, 0.3);
+    color: #e2e8f0;
+    background: rgba(96, 165, 250, 0.08);
+    border-left: 2px solid rgba(96, 165, 250, 0.35);
     padding: 6px 10px;
     border-radius: 0 6px 6px 0;
 }
@@ -155,7 +154,7 @@ body {
 }
 .chat-msg-system .chat-text {
     font-size: 11px;
-    color: #94a3b8;
+    color: #64748b;
 }
 
 .chat-msg-cmd {
@@ -164,8 +163,8 @@ body {
 }
 .chat-msg-cmd .chat-text {
     font-size: 11px;
-    color: #64748b;
-    background: rgba(100, 130, 255, 0.06);
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.06);
     padding: 2px 10px;
     border-radius: 10px;
     display: inline-block;

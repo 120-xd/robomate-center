@@ -114,7 +114,7 @@ const App = (() => {
                 els.processingBars.classList.add('hidden');
                 els.progressContainer.classList.add('hidden');
                 els.mainTip.innerText = '等待连接机器人';
-                els.subTip.innerText = `请先通过 USB 数据线连接您的 ${getModelDisplayName()}`;
+                els.subTip.innerText = '请先通过 USB 数据线连接您的图图机器人';
                 els.statusDot.className = 'w-2 h-2 rounded-full bg-gray-300';
                 els.connectionLabel.innerText = '离线状态';
                 els.robotStatusText.innerText = '未连接';
@@ -248,16 +248,15 @@ const App = (() => {
             if (result && result.models) {
                 populateModelSelector(result.models, result.active);
                 await refreshActiveModel();
-                showWelcomeMessage();
             }
         } catch (e) {
-            els.modelSelect.innerHTML = '<option>X1</option>';
+            els.modelSelect.innerHTML = '<option value="">请选择机器人型号</option>';
         }
     }
 
     function populateModelSelector(models, activeId) {
         if (!els.modelSelect) return;
-        els.modelSelect.innerHTML = '';
+        els.modelSelect.innerHTML = '<option value="">请选择机器人型号</option>';
         for (const m of models) {
             const opt = document.createElement('option');
             opt.value = m.id;
@@ -285,7 +284,7 @@ const App = (() => {
         if (els.modelName) els.modelName.textContent = state.activeModel.name;
         // Update subTip if in disconnected state (before connection)
         if (!state.connected) {
-            els.subTip.innerText = `请先通过 USB 数据线连接您的 ${state.activeModel.name}`;
+            els.subTip.innerText = '请先通过 USB 数据线连接您的图图机器人';
         }
     }
 

@@ -246,22 +246,20 @@ const App = (() => {
             const resp = await fetch(state.apiBase + '/models');
             const result = await resp.json();
             if (result && result.models) {
-                populateModelSelector(result.models, result.active);
-                await refreshActiveModel();
+                populateModelSelector(result.models);
             }
         } catch (e) {
             els.modelSelect.innerHTML = '<option value="">请选择机器人型号</option>';
         }
     }
 
-    function populateModelSelector(models, activeId) {
+    function populateModelSelector(models) {
         if (!els.modelSelect) return;
         els.modelSelect.innerHTML = '<option value="">请选择机器人型号</option>';
         for (const m of models) {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = m.name;
-            if (m.id === activeId) opt.selected = true;
             els.modelSelect.appendChild(opt);
         }
     }

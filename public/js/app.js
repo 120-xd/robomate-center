@@ -241,8 +241,6 @@ const App = (() => {
     // ========== Model Management ==========
     async function loadModels() {
         try {
-            const data = await apiPost('/models', {});
-            // apiPost uses POST but we need GET — handle manually
             const resp = await fetch(state.apiBase + '/models');
             const result = await resp.json();
             if (result && result.models) {
@@ -401,7 +399,10 @@ const App = (() => {
             state.ready = true;
             setUIMode('ready');
             writeToTerminal(`SUCCESS: 固件部署完成！${result.pages} 页 / ${result.bytes} bytes / ${duration}ms`, true);
-            writeToTerminal('READY: 可用指令: FW N | BW N | LT N | RT N | MW | HOME');
+            const cmdList = state.activeModel?.commands
+                ? state.activeModel.commands.map(c => c.cmd + (c.params ? ' ' + c.params : '')).join(' | ')
+                : 'FW N | BW N | LT N | RT N | MW | HOME';
+            writeToTerminal(`READY: 可用指令: ${cmdList}`);
 
             apiPost('/flash', {
                 firmwareVersion: 'v1.0.0',

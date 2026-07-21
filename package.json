@@ -1,0 +1,20 @@
+{
+  "name": "robomate-center",
+  "version": "1.0.0",
+  "description": "RoboMate-X1 AI voice control center - Web Serial + STK500v1 programmer + AI voice integration",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "sql.js": "^1.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "morgan": "^1.10.0",
+    "winston": "^3.14.0"
+  },
+  "keywords": ["arduino", "robot", "web-serial", "stk500v1", "voice-control"],
+  "license": "MIT"
+}

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RoboMate-X1 | AI 语音控制中心</title>
+<script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+<script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+<link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body class="grid-bg flex flex-col items-center justify-between py-10 px-6">
+
+<!-- ========== 顶部状态栏 ========== -->
+<header class="glass w-full max-w-4xl h-16 rounded-2xl flex items-center justify-between px-8 z-10 opacity-60 transition-opacity duration-500" id="statusBar">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<iconify-icon class="text-2xl text-gray-700" icon="solar:robot-bold-duotone"></iconify-icon>
+</div>
+<div>
+<h1 class="text-sm font-semibold text-gray-800">RoboMate-X1</h1>
+<p class="text-[10px] text-gray-500 tracking-wider uppercase" id="robotStatusText">未连接</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-gray-300 transition-colors duration-500" id="statusDot"></span>
+<span class="text-xs text-gray-600" id="connectionLabel">离线状态</span>
+</div>
+<div class="flex items-center gap-2 opacity-20 transition-all duration-500" id="directionIndicator">
+<iconify-icon class="text-xl text-blue-500 direction-arrow" icon="solar:round-arrow-up-bold" id="arrowIcon"></iconify-icon>
+<span class="text-xs font-medium text-gray-700" id="directionText">停止</span>
+</div>
+</div>
+</header>
+
+<!-- ========== 主交互区域 ========== -->
+<main class="flex-1 flex flex-col items-center justify-center relative w-full">
+<div class="relative flex items-center justify-center">
+
+<!-- 进度环 -->
+<div class="absolute hidden z-0" id="progressContainer">
+<svg height="230" viewbox="0 0 230 230" width="230">
+<circle class="text-gray-200/20" cx="115" cy="115" fill="transparent" r="108" stroke="currentColor" stroke-width="2"></circle>
+<circle class="progress-ring__circle" cx="115" cy="115" fill="transparent" id="progressCircle" r="108" stroke="rgba(180, 200, 255, 0.9)" stroke-linecap="round" stroke-width="4" style="filter: drop-shadow(0 0 8px rgba(180, 200, 255, 0.8));"></circle>
+</svg>
+</div>
+
+<!-- 呼吸球体 -->
+<div class="pearl-sphere sphere-idle flex items-center justify-center relative z-10" id="mainSphere">
+<div class="absolute top-[15%] left-[15%] w-16 h-16 bg-white/25 rounded-full blur-xl pointer-events-none"></div>
+<div class="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 animate-pulse pointer-events-none rounded-full"></div>
+<!-- 音柱动画 (处理中) -->
+<div class="hidden flex items-end h-10 relative z-20" id="processingBars">
+<div class="bar" style="animation-delay: 0.1s"></div>
+<div class="bar" style="animation-delay: 0.3s"></div>
+<div class="bar" style="animation-delay: 0.2s"></div>
+<div class="bar" style="animation-delay: 0.4s"></div>
+</div>
+<!-- 波纹效果 (就绪) -->
+<div class="hidden absolute inset-0 rounded-full overflow-hidden opacity-40 pointer-events-none" id="listeningWave">
+<div class="absolute inset-0 bg-gradient-to-t from-blue-400/30 to-transparent animate-pulse"></div>
+</div>
+</div>
+</div>
+
+<!-- 状态文字 -->
+<div class="mt-12 text-center">
+<p class="text-lg font-light text-gray-800 tracking-wide" id="mainTip">等待连接机器人</p>
+<p class="text-xs text-gray-400 mt-2" id="subTip">请先通过 USB 数据线连接您的 RoboMate-X1</p>
+</div>
+</main>
+
+<!-- ========== 底部控制面板 ========== -->
+<section class="w-full max-w-5xl flex flex-col gap-6">
+
+<!-- 代码终端 -->
+<div class="terminal-glass rounded-xl overflow-hidden flex flex-col h-48 shadow-2xl">
+<div class="bg-white/5 px-4 py-2 flex items-center justify-between border-b border-white/10">
+<div class="flex gap-1.5">
+<div class="w-2.5 h-2.5 rounded-full bg-red-400/80"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-yellow-400/80"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-green-400/80"></div>
+</div>
+<span class="text-[10px] text-white/30 font-mono tracking-widest uppercase">Motor_Control_Kernel_v1.0.sh</span>
+</div>
+<div class="flex-1 p-4 font-mono text-[11px] leading-relaxed text-gray-400 overflow-y-auto hide-scrollbar" id="codeTerminal">
+<div class="text-white/20 italic">// 系统就绪，等待固件注入...</div>
+</div>
+</div>
+
+<!-- 操作按钮区 -->
+<div class="flex items-center justify-center gap-4 pb-4 flex-wrap">
+
+<!-- 连接 USB -->
+<button class="px-8 py-3 rounded-full glass text-sm font-medium text-gray-700 hover:bg-white transition-all active:scale-95 flex items-center gap-2" id="btnConnect">
+<iconify-icon icon="solar:usb-bold-duotone" id="connectIcon"></iconify-icon>
+<span id="connectText">连接 USB</span>
+</button>
+
+<!-- 烧录固件 -->
+<button class="px-8 py-3 rounded-full glass text-sm font-medium text-gray-700 hover:bg-white transition-all active:scale-95 flex items-center gap-2 cmd-btn" id="btnBurn" disabled>
+<iconify-icon icon="solar:bolt-bold-duotone"></iconify-icon>
+<span>烧录固件</span>
+</button>
+
+<!-- 麦克风语音 -->
+<button class="px-6 py-3 rounded-full glass text-sm font-medium text-gray-700 hover:bg-white transition-all active:scale-95 flex items-center gap-2 cmd-btn" id="btnMic" onclick="App.toggleMic()">
+<iconify-icon icon="solar:microphone-3-bold-duotone"></iconify-icon>
+<span>语音</span>
+<span class="text-[10px] text-blue-500" id="micIndicator"></span>
+</button>
+
+<!-- 方向控制组 -->
+<div class="flex items-center gap-4 transition-opacity duration-500 opacity-30 pointer-events-none" id="actionGroup">
+
+<!-- 方向键 -->
+<div class="grid grid-cols-3 gap-1.5">
+<div></div>
+<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('FW 1')" title="前进 1 步">
+<iconify-icon icon="solar:arrow-up-bold-duotone"></iconify-icon>
+</button>
+<div></div>
+<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('LT 1')" title="左转 1 步">
+<iconify-icon icon="solar:arrow-left-bold-duotone"></iconify-icon>
+</button>
+<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('HOME')" title="归中">
+<iconify-icon icon="solar:home-bold-duotone"></iconify-icon>
+</button>
+<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('RT 1')" title="右转 1 步">
+<iconify-icon icon="solar:arrow-right-bold-duotone"></iconify-icon>
+</button>
+<div></div>
+<button class="w-12 h-12 rounded-full glass flex items-center justify-center text-lg hover:bg-white cmd-btn text-gray-700" onclick="App.sendCommand('BW 1')" title="后退 1 步">
+<iconify-icon icon="solar:arrow-down-bold-duotone"></iconify-icon>
+</button>
+<div></div>
+</div>
+
+<!-- 快捷动作 -->
+<div class="flex flex-col gap-2 ml-2">
+<button class="px-4 py-2 rounded-full glass text-xs font-medium text-gray-700 hover:bg-white cmd-btn" onclick="App.sendCommand('FW 3')">前进 x3</button>
+<button class="px-4 py-2 rounded-full glass text-xs font-medium text-gray-700 hover:bg-white cmd-btn" onclick="App.sendCommand('BW 3')">后退 x3</button>
+<button class="px-4 py-2 rounded-full glass text-xs font-medium text-gray-700 hover:bg-white cmd-btn" onclick="App.sendCommand('MW')">太空步</button>
+</div>
+
+<!-- 自定义指令输入 -->
+<div class="flex items-center gap-2 ml-3">
+<input type="text" id="cmdInput" placeholder="输入指令..."
+    class="w-28 px-3 py-2 rounded-full glass text-sm text-gray-700 placeholder-gray-400 outline-none border-0">
+<button class="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white cmd-btn text-gray-700"
+    onclick="const inp=document.getElementById('cmdInput'); App.sendCommand(inp.value.trim()); inp.value='';">
+<iconify-icon icon="solar:plain-2-bold-duotone"></iconify-icon>
+</button>
+</div>
+
+</div><!-- /actionGroup -->
+</div>
+</section>
+
+<!-- ========== Scripts ========== -->
+<script src="/js/serial-core.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

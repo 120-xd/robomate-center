@@ -1,0 +1,526 @@
+/**
+ * RoboMate-X1 — Application Controller
+ * UI state management, terminal, event coordination
+ */
+
+const App = (() => {
+    const $ = id => document.getElementById(id);
+
+    // ========== State ==========
+    const state = {
+        connected: false,
+        burning: false,
+        ready: false,
+        currentDir: 'stop',
+        apiBase: '/api'  // backend API base URL
+    };
+
+    // ========== DOM Cache ==========
+    let els = {};
+
+    function cacheDom() {
+        els = {
+            mainSphere: $('mainSphere'),
+            robotStatusText: $('robotStatusText'),
+            statusDot: $('statusDot'),
+            connectionLabel: $('connectionLabel'),
+            mainTip: $('mainTip'),
+            subTip: $('subTip'),
+            btnConnect: $('btnConnect'),
+            btnBurn: $('btnBurn'),
+            connectText: $('connectText'),
+            connectIcon: $('connectIcon'),
+            progressContainer: $('progressContainer'),
+            progressCircle: $('progressCircle'),
+            codeTerminal: $('codeTerminal'),
+            actionGroup: $('actionGroup'),
+            statusBar: $('statusBar'),
+            directionIndicator: $('directionIndicator'),
+            directionText: $('directionText'),
+            arrowIcon: $('arrowIcon'),
+            processingBars: $('processingBars'),
+            listeningWave: $('listeningWave'),
+            cmdInput: $('cmdInput'),
+            btnMic: $('btnMic'),
+            micIndicator: $('micIndicator')
+        };
+    }
+
+    // ========== Progress Ring ==========
+    const radius = 108;
+    const circumference = radius * 2 * Math.PI;
+
+    function initProgressRing() {
+        els.progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+    }
+
+    function updateProgress(percent) {
+        const offset = circumference - (percent / 100 * circumference);
+        els.progressCircle.style.strokeDashoffset = offset;
+    }
+
+    // ========== Terminal ==========
+    function writeToTerminal(text, highlighted = false) {
+        if (!els.codeTerminal) return;
+        const div = document.createElement('div');
+        div.className = `mb-1 ${highlighted ? 'code-highlight' : ''}`;
+        const time = new Date().toLocaleTimeString();
+        div.innerHTML = `<span class="text-gray-600 mr-2">[${time}]</span>${text}`;
+        els.codeTerminal.appendChild(div);
+        els.codeTerminal.scrollTop = els.codeTerminal.scrollHeight;
+    }
+
+    // ========== UI Modes ==========
+    function setUIMode(mode) {
+        switch (mode) {
+            case 'disconnected':
+                els.mainSphere.className = 'pearl-sphere sphere-idle';
+                els.listeningWave.classList.add('hidden');
+                els.processingBars.classList.add('hidden');
+                els.progressContainer.classList.add('hidden');
+                els.mainTip.innerText = '等待连接机器人';
+                els.subTip.innerText = '请先通过 USB 数据线连接您的 RoboMate-X1';
+                els.statusDot.className = 'w-2 h-2 rounded-full bg-gray-300';
+                els.connectionLabel.innerText = '离线状态';
+                els.robotStatusText.innerText = '未连接';
+                els.statusBar.style.opacity = '0.6';
+                els.directionIndicator.style.opacity = '0.2';
+                els.actionGroup.classList.add('opacity-30', 'pointer-events-none');
+                els.btnBurn.disabled = true;
+                els.connectText.innerText = '连接 USB';
+                els.connectIcon.setAttribute('icon', 'solar:usb-bold-duotone');
+                els.btnConnect.classList.remove('bg-red-50/50');
+                if (els.btnMic) els.btnMic.classList.remove('mic-active');
+                break;
+
+            case 'connecting':
+                els.mainSphere.className = 'pearl-sphere sphere-connecting';
+                els.mainTip.innerText = '正在初始化 USB 通道...';
+                els.subTip.innerText = '正在建立安全握手协议';
+                els.statusDot.className = 'w-2 h-2 rounded-full bg-blue-400 animate-pulse';
+                els.connectionLabel.innerText = '正在连接...';
+                els.robotStatusText.innerText = '连接中...';
+                els.statusBar.style.opacity = '1';
+                els.btnBurn.disabled = true;
+                break;
+
+            case 'synced':
+                els.mainSphere.className = 'pearl-sphere sphere-idle';
+                els.listeningWave.classList.remove('hidden');
+                els.mainTip.innerText = '设备已同步';
+                els.subTip.innerText = '点击「烧录固件」部署控制程序到机器人';
+                els.statusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
+                els.connectionLabel.innerText = '已同步 - 待烧录';
+                els.robotStatusText.innerText = '待烧录';
+                els.btnBurn.disabled = false;
+                els.connectText.innerText = '断开连接';
+                els.connectIcon.setAttribute('icon', 'solar:plug-circle-bold-duotone');
+                els.btnConnect.classList.add('bg-red-50/50');
+                break;
+
+            case 'burning':
+                els.mainSphere.className = 'pearl-sphere sphere-connecting';
+                els.progressContainer.classList.remove('hidden');
+                els.listeningWave.classList.add('hidden');
+                els.mainTip.innerText = '正在部署控制固件';
+                els.subTip.innerText = '版本 v1.0 - 正在写入核心主板驱动';
+                els.statusDot.className = 'w-2 h-2 rounded-full bg-blue-400 animate-pulse';
+                els.connectionLabel.innerText = '烧录中...';
+                els.robotStatusText.innerText = '下载中...';
+                els.btnBurn.disabled = true;
+                break;
+
+            case 'ready':
+                els.mainSphere.className = 'pearl-sphere sphere-idle';
+                els.listeningWave.classList.remove('hidden');
+                els.progressContainer.classList.add('hidden');
+                els.mainTip.innerText = '语音控制就绪';
+                els.subTip.innerText = '使用方向键控制机器人，或点击麦克风语音控制';
+                els.statusDot.className = 'w-2 h-2 rounded-full bg-blue-500';
+                els.connectionLabel.innerText = '已就绪';
+                els.robotStatusText.innerText = '在线 - 聆听中';
+                els.btnBurn.disabled = true;
+                els.statusBar.style.opacity = '1';
+                els.actionGroup.classList.remove('opacity-30', 'pointer-events-none');
+                break;
+
+            case 'error':
+                els.mainSphere.className = 'pearl-sphere sphere-idle';
+                els.listeningWave.classList.add('hidden');
+                els.processingBars.classList.add('hidden');
+                els.progressContainer.classList.add('hidden');
+                els.statusDot.className = 'w-2 h-2 rounded-full bg-red-400';
+                els.connectionLabel.innerText = '错误';
+                break;
+        }
+    }
+
+    // ========== Direction Indicator ==========
+    let dirTimeout = null;
+    function showDirection(cmd) {
+        els.directionIndicator.style.opacity = '1';
+        if (cmd.startsWith('FW')) {
+            els.directionText.innerText = '前进';
+            els.arrowIcon.style.transform = 'rotate(0deg)';
+        } else if (cmd.startsWith('BW')) {
+            els.directionText.innerText = '后退';
+            els.arrowIcon.style.transform = 'rotate(180deg)';
+        } else if (cmd.startsWith('LT')) {
+            els.directionText.innerText = '左转';
+            els.arrowIcon.style.transform = 'rotate(-90deg)';
+        } else if (cmd.startsWith('RT')) {
+            els.directionText.innerText = '右转';
+            els.arrowIcon.style.transform = 'rotate(90deg)';
+        } else if (cmd === 'MW') {
+            els.directionText.innerText = '太空步';
+        } else if (cmd === 'HOME') {
+            els.directionText.innerText = '归中';
+        }
+        els.robotStatusText.innerText = `执行: ${cmd}`;
+        els.mainTip.innerText = `已发送指令: ${cmd}`;
+
+        clearTimeout(dirTimeout);
+        dirTimeout = setTimeout(() => {
+            els.directionIndicator.style.opacity = '0.2';
+            els.directionText.innerText = '停止';
+            els.robotStatusText.innerText = '在线 - 聆听中';
+            els.mainTip.innerText = '语音控制就绪';
+        }, 3000);
+    }
+
+    // ========== API Helpers ==========
+    async function apiPost(path, body) {
+        try {
+            const res = await fetch(state.apiBase + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return await res.json();
+        } catch (e) {
+            // Backend might not be running — that's OK
+            return null;
+        }
+    }
+
+    // ========== Connection Flow ==========
+    async function toggleConnect() {
+        if (state.burning) return;
+
+        if (!state.connected) {
+            try {
+                setUIMode('connecting');
+                writeToTerminal('INFO: 正在请求串口权限...');
+
+                await SerialCore.connect(115200);
+                state.connected = true;
+                writeToTerminal('SUCCESS: USB 串口已连接 @ 115200 baud', true);
+
+                // Auto sync test
+                writeToTerminal('INFO: 正在进行 STK500 握手...');
+                const syncResult = await SerialCore.syncTest();
+
+                if (syncResult.success) {
+                    writeToTerminal(`SUCCESS: STK500 同步通过 ${syncResult.hexStr}`, true);
+                    apiPost('/events', { level: 'info', source: 'serial', message: 'STK500 sync success' });
+                    setUIMode('synced');
+                } else {
+                    writeToTerminal(`WARN: 同步异常 ${syncResult.hexStr}`, false);
+                    // Still allow burn attempt
+                    setUIMode('synced');
+                    els.btnBurn.disabled = false;
+                }
+            } catch (e) {
+                writeToTerminal('ERROR: 连接失败 - ' + e.message);
+                setUIMode('disconnected');
+                state.connected = false;
+                await SerialCore.disconnect();
+            }
+        } else {
+            await SerialCore.disconnect();
+            state.connected = false;
+            state.ready = false;
+            writeToTerminal('WARN: 连接已断开');
+            writeToTerminal('// 系统就绪，等待固件注入...');
+            apiPost('/events', { level: 'info', source: 'serial', message: 'Disconnected' });
+            setUIMode('disconnected');
+        }
+    }
+
+    // ========== Burn Flow ==========
+    async function startBurning() {
+        if (!state.connected || state.burning) return;
+
+        try {
+            state.burning = true;
+            setUIMode('burning');
+            updateProgress(0);
+            writeToTerminal('========== 开始部署固件 ==========');
+
+            // Fetch hex from server
+            let hexText;
+            try {
+                const resp = await fetch('/firmware/robot_cmd.hex');
+                hexText = await resp.text();
+                writeToTerminal('INFO: 从服务器加载固件', true);
+            } catch {
+                writeToTerminal('ERROR: 无法加载固件文件 /firmware/robot_cmd.hex');
+                throw new Error('固件文件加载失败');
+            }
+
+            const pages = SerialCore.parseHex(hexText);
+            writeToTerminal(`INFO: 固件解析完成: ${pages.length} 页 (${pages.length * 128} bytes)`, true);
+
+            // Enter programming mode
+            await SerialCore.enterProgMode();
+            writeToTerminal('SUCCESS: 已进入编程模式', true);
+
+            const startTime = Date.now();
+
+            // Burn with progress
+            const result = await SerialCore.burnHex(hexText, (pct, done, total) => {
+                updateProgress(pct);
+                if (done % 4 === 0 || done === total) {
+                    writeToTerminal(`PROGRESS: 烧录 ${pct}% (${done}/${total} 页)`);
+                }
+            });
+
+            const duration = Date.now() - startTime;
+            updateProgress(100);
+
+            // Ring flash animation
+            els.progressCircle.classList.add('ring-flash');
+            setTimeout(() => {
+                els.progressContainer.classList.add('hidden');
+                els.progressCircle.classList.remove('ring-flash');
+            }, 500);
+
+            state.ready = true;
+            setUIMode('ready');
+            writeToTerminal(`SUCCESS: 固件部署完成！${result.pages} 页 / ${result.bytes} bytes / ${duration}ms`, true);
+            writeToTerminal('READY: 可用指令: FW N | BW N | LT N | RT N | MW | HOME');
+
+            apiPost('/flash', {
+                firmwareVersion: 'v1.0.0',
+                firmwareSize: result.bytes,
+                pageCount: result.pages,
+                success: true,
+                durationMs: duration
+            });
+
+        } catch (e) {
+            writeToTerminal('ERROR: 烧录失败 - ' + e.message);
+            writeToTerminal('HINT: 请确认 Nano 已插好、Bootloader 完好，可尝试重新连接');
+            setUIMode('error');
+            state.ready = false;
+
+            apiPost('/flash', {
+                firmwareVersion: 'v1.0.0',
+                success: false,
+                errorMessage: e.message
+            });
+        } finally {
+            state.burning = false;
+        }
+    }
+
+    // ========== Send Command ==========
+    async function sendCommand(cmd) {
+        if (!cmd) return;
+        cmd = cmd.toUpperCase().trim();
+        if (!cmd) return;
+
+        if (state.ready && SerialCore.isConnected()) {
+            try {
+                await SerialCore.sendCommand(cmd);
+                writeToTerminal(`SEND: ${cmd}`, true);
+                showDirection(cmd);
+
+                // Log to backend
+                apiPost('/commands', { command: cmd, source: 'manual' });
+
+            } catch (e) {
+                writeToTerminal('ERROR: 发送失败 - ' + e.message);
+            }
+        } else if (state.connected && !state.ready) {
+            writeToTerminal('WARN: 请先烧录固件再发送指令');
+        } else {
+            writeToTerminal('WARN: 请先连接 USB 并烧录固件');
+        }
+    }
+
+    // ========== Voice via Backend ==========
+    async function sendVoiceCommand(text) {
+        if (!text) return;
+        writeToTerminal(`VOICE: "${text}"`, true);
+
+        // Send to backend for parsing
+        const result = await apiPost('/voice/command', { text });
+
+        if (result && result.command) {
+            writeToTerminal(`PARSED: "${text}" → ${result.command}`, true);
+            await sendCommand(result.command);
+            apiPost('/commands', { command: result.command, source: 'voice', rawVoiceText: text });
+        } else if (result) {
+            writeToTerminal(`WARN: 无法理解指令 "${text}"`);
+            els.mainTip.innerText = '未识别的指令: ' + text;
+        } else {
+            // Backend not available — use local fallback parsing
+            const cmd = localParseVoice(text);
+            if (cmd) {
+                writeToTerminal(`LOCAL: "${text}" → ${cmd}`);
+                await sendCommand(cmd);
+            } else {
+                writeToTerminal(`WARN: 无法理解指令 "${text}"`);
+                els.mainTip.innerText = '未识别的指令: ' + text;
+            }
+        }
+    }
+
+    // Fallback local voice parsing (same logic as backend)
+    function localParseVoice(text) {
+        const t = text.replace(/[，。！？、\s]/g, '').toLowerCase();
+        if (/前进|向前|往前|直走|走/.test(t)) {
+            const steps = t.match(/(\d+)/);
+            return steps ? `FW ${steps[1]}` : 'FW 1';
+        }
+        if (/后退|向后|往后退|倒车/.test(t)) {
+            const steps = t.match(/(\d+)/);
+            return steps ? `BW ${steps[1]}` : 'BW 1';
+        }
+        if (/左转|向左|往左/.test(t)) {
+            const steps = t.match(/(\d+)/);
+            return steps ? `LT ${steps[1]}` : 'LT 1';
+        }
+        if (/右转|向右|往右/.test(t)) {
+            const steps = t.match(/(\d+)/);
+            return steps ? `RT ${steps[1]}` : 'RT 1';
+        }
+        if (/太空步|太空|月球漫步|moonwalk/i.test(t)) return 'MW';
+        if (/归中|回中|回家|home/i.test(t)) return 'HOME';
+        if (/跳舞|舞蹈|dance/i.test(t)) return 'MW';
+        if (/停|停止|站住/.test(t)) return 'HOME';
+        return null;
+    }
+
+    // ========== Web Speech API (Browser-based STT) ==========
+    let recognition = null;
+    let isListening = false;
+
+    function initSpeechRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return false;
+
+        recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            writeToTerminal(`RECOGNIZED: "${text}"`, true);
+            els.mainTip.innerText = '识别到: ' + text;
+            sendVoiceCommand(text);
+            stopListening();
+        };
+
+        recognition.onerror = (event) => {
+            writeToTerminal(`SPEECH ERROR: ${event.error}`);
+            stopListening();
+        };
+
+        recognition.onend = () => {
+            stopListening();
+        };
+
+        return true;
+    }
+
+    function startListening() {
+        if (!recognition && !initSpeechRecognition()) {
+            writeToTerminal('WARN: 浏览器不支持语音识别，请使用 Chrome');
+            els.mainTip.innerText = '语音识别不可用';
+            return;
+        }
+        if (!state.ready) {
+            writeToTerminal('WARN: 请先连接并烧录固件');
+            return;
+        }
+        if (isListening) return;
+
+        isListening = true;
+        recognition.start();
+        els.mainTip.innerText = '正在聆听...';
+        els.subTip.innerText = '请说指令，例如「前进三步」';
+        els.processingBars.classList.remove('hidden');
+        els.listeningWave.classList.add('hidden');
+        if (els.btnMic) els.btnMic.classList.add('mic-active');
+        if (els.micIndicator) els.micIndicator.innerText = '聆听中...';
+        writeToTerminal('MIC: 开始聆听...');
+    }
+
+    function stopListening() {
+        isListening = false;
+        els.processingBars.classList.add('hidden');
+        els.listeningWave.classList.remove('hidden');
+        if (els.btnMic) els.btnMic.classList.remove('mic-active');
+        if (els.micIndicator) els.micIndicator.innerText = '';
+        if (state.ready) {
+            els.mainTip.innerText = '语音控制就绪';
+            els.subTip.innerText = '使用方向键控制机器人，或点击麦克风语音控制';
+        }
+    }
+
+    function toggleMic() {
+        if (isListening) {
+            if (recognition) recognition.abort();
+            stopListening();
+        } else {
+            startListening();
+        }
+    }
+
+    // ========== Init ==========
+    function init() {
+        cacheDom();
+        initProgressRing();
+
+        // Wire up buttons
+        els.btnConnect.addEventListener('click', toggleConnect);
+        els.btnBurn.addEventListener('click', startBurning);
+        if (els.btnMic) els.btnMic.addEventListener('click', toggleMic);
+
+        // Enter key in input
+        if (els.cmdInput) {
+            els.cmdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    sendCommand(els.cmdInput.value.trim());
+                    els.cmdInput.value = '';
+                }
+            });
+        }
+
+        // Init speech recognition
+        initSpeechRecognition();
+
+        // Welcome message
+        writeToTerminal('// RoboMate-X1 控制中心 v1.0');
+        writeToTerminal('// 固件: 四舵机串口指令控制 (D2/D3/D10/D11)');
+        writeToTerminal('// 指令: FW N | BW N | LT N | RT N | MW | HOME');
+        writeToTerminal('// 点击「连接 USB」开始 → 同步 → 烧录 → 控制');
+    }
+
+    // ========== Public API ==========
+    return {
+        init,
+        toggleConnect,
+        startBurning,
+        sendCommand,
+        sendVoiceCommand,
+        toggleMic,
+        writeToTerminal
+    };
+})();
+
+// Auto-init on DOM ready
+document.addEventListener('DOMContentLoaded', () => App.init());

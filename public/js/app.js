@@ -32,7 +32,7 @@ const App = (() => {
             connectIcon: $('connectIcon'),
             progressContainer: $('progressContainer'),
             progressCircle: $('progressCircle'),
-            codeTerminal: $('codeTerminal'),
+            chatPanel: $('chatPanel'),
             actionGroup: $('actionGroup'),
             statusBar: $('statusBar'),
             directionIndicator: $('directionIndicator'),
@@ -59,15 +59,36 @@ const App = (() => {
         els.progressCircle.style.strokeDashoffset = offset;
     }
 
-    // ========== Terminal ==========
-    function writeToTerminal(text, highlighted = false) {
-        if (!els.codeTerminal) return;
+    // ========== Chat Panel ==========
+    function addChatMessage(type, text) {
+        if (!els.chatPanel) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = `chat-msg chat-msg-${type}`;
+
+        if (type === 'user') {
+            wrapper.innerHTML = `<span class="chat-label">你</span><span class="chat-text">${escapeHtml(text)}</span>`;
+        } else if (type === 'ai') {
+            wrapper.innerHTML = `<span class="chat-label">小X1</span><span class="chat-text">${escapeHtml(text)}</span>`;
+        } else if (type === 'cmd') {
+            wrapper.innerHTML = `<span class="chat-text">已执行: ${escapeHtml(text)}</span>`;
+        } else {
+            // system
+            wrapper.innerHTML = `<span class="chat-text">${escapeHtml(text)}</span>`;
+        }
+
+        els.chatPanel.appendChild(wrapper);
+        els.chatPanel.scrollTop = els.chatPanel.scrollHeight;
+    }
+
+    function escapeHtml(str) {
         const div = document.createElement('div');
-        div.className = `mb-1 ${highlighted ? 'code-highlight' : ''}`;
-        const time = new Date().toLocaleTimeString();
-        div.innerHTML = `<span class="text-gray-600 mr-2">[${time}]</span>${text}`;
-        els.codeTerminal.appendChild(div);
-        els.codeTerminal.scrollTop = els.codeTerminal.scrollHeight;
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // Keep for backward compat — routes to system chat messages
+    function writeToTerminal(text, highlighted) {
+        addChatMessage('system', text);
     }
 
     // ========== UI Modes ==========
@@ -333,16 +354,15 @@ const App = (() => {
         if (state.ready && SerialCore.isConnected()) {
             try {
                 await SerialCore.sendCommand(cmd);
-                writeToTerminal(`SEND: ${cmd}`, true);
                 showDirection(cmd);
                 apiPost('/commands', { command: cmd, source: 'manual' });
             } catch (e) {
-                writeToTerminal('ERROR: 发送失败 - ' + e.message);
+                addChatMessage('system', '发送失败: ' + e.message);
             }
         } else if (state.connected && !state.ready) {
-            writeToTerminal('WARN: 请先烧录固件再发送指令');
+            addChatMessage('system', '请先烧录固件再发送指令');
         } else {
-            writeToTerminal('WARN: 请先连接 USB 并烧录固件');
+            addChatMessage('system', '请先连接 USB 并烧录固件');
         }
     }
 
@@ -363,16 +383,16 @@ const App = (() => {
             return;
         }
 
-        // Otherwise, route through AI
+        // Show user message in chat
+        addChatMessage('user', text);
         els.mainTip.innerText = 'AI 正在理解...';
-        writeToTerminal(`AI: "${text}"`, true);
         await sendToAI(text, 'text');
     }
 
     // ========== Voice → AI → Execute ==========
     async function sendVoiceCommand(text) {
         if (!text) return;
-        writeToTerminal(`VOICE: "${text}"`, true);
+        addChatMessage('user', text);
         await sendToAI(text, 'voice');
     }
 
@@ -380,32 +400,48 @@ const App = (() => {
     async function sendToAI(text, source) {
         const result = await apiPost('/voice/command', { text });
 
-        if (result && result.commands && result.commands.length > 0) {
-            // Backend returned parsed commands
-            writeToTerminal(`AI: "${text}" → [${result.commands.map(c => c.cmd).join(', ')}]`, true);
-            els.mainTip.innerText = `AI 理解: ${result.commands.map(c => c.cmd).join(' → ')}`;
+        if (!result) {
+            // Backend not available — use local fallback
+            addChatMessage('system', '后端服务不可用，使用本地解析');
+            const cmd = localParseVoice(text);
+            if (cmd) {
+                addChatMessage('ai', `好的，执行指令: ${cmd}`);
+                await sendRawCommand(cmd);
+            } else {
+                addChatMessage('ai', '抱歉，我没听懂。试试说「前进三步」或者「跳舞」吧！');
+                els.mainTip.innerText = '无法理解，请再说一次';
+            }
+            return;
+        }
+
+        if (result.commands && result.commands.length > 0) {
+            // AI returned commands — show explanation and execute
+            if (result.explanation) {
+                addChatMessage('ai', result.explanation);
+            } else {
+                addChatMessage('ai', `好的，执行: ${result.commands.map(c => c.cmd).join(' → ')}`);
+            }
+            els.mainTip.innerText = result.commands.map(c => c.cmd).join(' → ');
 
             for (const item of result.commands) {
+                addChatMessage('cmd', item.cmd);
                 await sendRawCommand(item.cmd);
-                // Small delay between commands so robot doesn't skip
                 await new Promise(r => setTimeout(r, 300));
             }
             apiPost('/commands', { command: result.commands.map(c => c.cmd).join(','), source, rawVoiceText: text });
             els.mainTip.innerText = '语音控制就绪';
-        } else if (result && result.error) {
-            writeToTerminal(`AI ERROR: ${result.error}`);
-            els.mainTip.innerText = 'AI 理解失败: ' + result.error;
+        } else if (result.explanation) {
+            // AI returned a conversational response (no commands, just chat)
+            addChatMessage('ai', result.explanation);
+            els.mainTip.innerText = '语音控制就绪';
+        } else if (result.error) {
+            // Legacy error field — convert to friendly message
+            addChatMessage('ai', result.error);
+            els.mainTip.innerText = result.error;
         } else {
-            // Backend not available — use local fallback
-            writeToTerminal('WARN: 后端不可用，使用本地解析');
-            const cmd = localParseVoice(text);
-            if (cmd) {
-                writeToTerminal(`LOCAL: "${text}" → ${cmd}`);
-                await sendRawCommand(cmd);
-            } else {
-                writeToTerminal(`WARN: 无法理解 "${text}"`);
-                els.mainTip.innerText = '无法理解: ' + text;
-            }
+            // Nothing useful — fallback
+            addChatMessage('ai', '抱歉，我没听懂。试试说「前进三步」或者「跳舞」吧！');
+            els.mainTip.innerText = '无法理解，请再说一次';
         }
     }
 
@@ -450,14 +486,15 @@ const App = (() => {
 
         recognition.onresult = (event) => {
             const text = event.results[0][0].transcript;
-            writeToTerminal(`RECOGNIZED: "${text}"`, true);
             els.mainTip.innerText = '识别到: ' + text;
             sendVoiceCommand(text);
             stopListening();
         };
 
         recognition.onerror = (event) => {
-            writeToTerminal(`SPEECH ERROR: ${event.error}`);
+            if (event.error !== 'aborted') {
+                addChatMessage('system', '语音识别出错，请重试');
+            }
             stopListening();
         };
 
@@ -470,12 +507,12 @@ const App = (() => {
 
     function startListening() {
         if (!recognition && !initSpeechRecognition()) {
-            writeToTerminal('WARN: 浏览器不支持语音识别，请使用 Chrome');
+            addChatMessage('system', '浏览器不支持语音识别，请使用 Chrome 浏览器');
             els.mainTip.innerText = '语音识别不可用';
             return;
         }
         if (!state.ready) {
-            writeToTerminal('WARN: 请先连接并烧录固件');
+            addChatMessage('system', '请先连接并烧录固件');
             return;
         }
         if (isListening) return;
@@ -488,7 +525,6 @@ const App = (() => {
         els.listeningWave.classList.add('hidden');
         if (els.btnMic) els.btnMic.classList.add('mic-active');
         if (els.micIndicator) els.micIndicator.innerText = '聆听中...';
-        writeToTerminal('MIC: 开始聆听...');
     }
 
     function stopListening() {
@@ -536,11 +572,7 @@ const App = (() => {
         initSpeechRecognition();
 
         // Welcome message
-        writeToTerminal('// RoboMate-X1 控制中心 v1.0');
-        writeToTerminal('// 固件: 四舵机串口指令控制 (D2/D3/D10/D11)');
-        writeToTerminal('// 指令: FW N | BW N | LT N | RT N | MW | HOME');
-        writeToTerminal('// 支持自然语言: 前进3步 / 左转然后后退 / 太空步');
-        writeToTerminal('// 点击「连接 USB」开始 → 同步 → 烧录 → 语音控制');
+        addChatMessage('ai', '你好！我是小X1，你的机器人助手～连接 USB 并烧录固件后，就可以语音控制机器人啦！试试说「前进三步」或「跳个舞」吧！');
     }
 
     // ========== Public API ==========

@@ -201,3 +201,8 @@ body {
     animation: mic-pulse 1.5s infinite;
     background: rgba(100, 140, 255, 0.15) !important;
 }
+
+/* ---------- Connect Button States ---------- */
+.btn-connected {
+    background: rgba(254, 226, 226, 0.5);  /* bg-red-50/50 equivalent */
+}

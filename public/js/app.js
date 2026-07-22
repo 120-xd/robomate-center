@@ -124,7 +124,7 @@ const App = (() => {
                 els.btnBurn.disabled = true;
                 els.connectText.innerText = '连接 USB';
                 els.connectIcon.setAttribute('icon', 'solar:usb-bold-duotone');
-                els.btnConnect.classList.remove('bg-red-50/50');
+                els.btnConnect.classList.remove('btn-connected');
                 if (els.btnMic) els.btnMic.classList.remove('mic-active');
                 break;
 
@@ -150,7 +150,7 @@ const App = (() => {
                 els.btnBurn.disabled = false;
                 els.connectText.innerText = '断开连接';
                 els.connectIcon.setAttribute('icon', 'solar:plug-circle-bold-duotone');
-                els.btnConnect.classList.add('bg-red-50/50');
+                els.btnConnect.classList.add('btn-connected');
                 break;
 
             case 'burning':
@@ -339,8 +339,13 @@ const App = (() => {
                     writeToTerminal(`SUCCESS: STK500 同步通过 ${syncResult.hexStr}`, true);
                     apiPost('/events', { level: 'info', source: 'serial', message: 'STK500 sync success' });
                     setUIMode('synced');
+                } else if (syncResult.timeout) {
+                    writeToTerminal('WARN: 同步超时 — 串口无应答，请检查波特率或是否已进入 Bootloader', false);
+                    // Still allow burn attempt (will re-enter prog mode)
+                    setUIMode('synced');
+                    els.btnBurn.disabled = false;
                 } else {
-                    writeToTerminal(`WARN: 同步异常 ${syncResult.hexStr}`, false);
+                    writeToTerminal(`WARN: 同步异常 ${syncResult.hexStr} — 可能不是 STK500 设备`, false);
                     // Still allow burn attempt
                     setUIMode('synced');
                     els.btnBurn.disabled = false;

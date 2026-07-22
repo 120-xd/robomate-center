@@ -5,16 +5,26 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "build:css": "tailwindcss -i public/css/tailwind-input.css -o public/css/tailwind.css --minify"
   },
   "dependencies": {
-    "express": "^4.21.0",
-    "sql.js": "^1.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.21.0",
     "morgan": "^1.10.0",
+    "sql.js": "^1.10.0",
     "winston": "^3.14.0"
   },
-  "keywords": ["arduino", "robot", "web-serial", "stk500v1", "voice-control"],
-  "license": "MIT"
+  "keywords": [
+    "arduino",
+    "robot",
+    "web-serial",
+    "stk500v1",
+    "voice-control"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
 }

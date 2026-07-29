@@ -9,10 +9,10 @@
 - **项目名称：** RoboMate Center（Arduino 机器人 AI 语音控制中心）
 - **技术栈：** Node.js 20 + Express + SQLite + Tailwind CSS 3
 - **进程管理：** PM2
-- **反向代理：** Caddy（自动 HTTPS）
+- **反向代理：** Nginx + Let's Encrypt 证书（首选）或 Caddy（备选）
 - **域名：** lenghuai.xyz
-- **服务端口：** Node 监听 3000，Caddy 代理 443 → 3000
-- **Web Serial API：** 必须 HTTPS，这是用 Caddy 的原因
+- **服务端口：** Node 监听 3000，Nginx 代理 443 → 3000
+- **Web Serial API：** 必须 HTTPS，因此必须配置 SSL 证书
 
 ---
 
@@ -33,49 +33,11 @@ npm -v     # 应显示 10.x.x
 sudo npm install -g pm2
 pm2 -v     # 验证
 
-# Caddy（官方二进制安装，适用于非 COPR 系统如 Alibaba Cloud Linux）
-curl -OL "https://github.com/caddyserver/caddy/releases/latest/download/caddy_linux_amd64.tar.gz"
-sudo tar -xzf caddy_linux_amd64.tar.gz -C /usr/local/bin caddy
-sudo chmod +x /usr/local/bin caddy
-rm -f caddy_linux_amd64.tar.gz
+# Nginx（Alibaba Cloud Linux 自带源，无需外网）
+sudo dnf install -y nginx
 
-# 创建 Caddy 用户（以非 root 运行）
-sudo groupadd --system caddy
-sudo useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy Web Server" caddy
-
-# 手动创建 systemd 服务文件
-sudo tee /etc/systemd/system/caddy.service << 'UNITEOF'
-[Unit]
-Description=Caddy Web Server
-Documentation=https://caddyserver.com/docs/
-After=network.target network-online.target
-Requires=network-online.target
-
-[Service]
-Type=notify
-User=caddy
-Group=caddy
-ExecStart=/usr/local/bin/caddy run --environ --config /etc/caddy/Caddyfile
-ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile
-TimeoutStopSec=5s
-LimitNOFILE=1048576
-LimitNPROC=512
-PrivateTmp=true
-ProtectSystem=full
-AmbientCapabilities=CAP_NET_BIND_SERVICE
-
-[Install]
-WantedBy=multi-user.target
-UNITEOF
-
-# 创建 Caddy 配置目录
-sudo mkdir -p /etc/caddy
-
-# 重载 systemd 并启动
-sudo systemctl daemon-reload
-sudo systemctl enable caddy
-
-caddy version  # 验证
+# 验证
+nginx -v
 ```
 
 ---
@@ -125,48 +87,75 @@ DOTENV
 
 ---
 
-## 第四步：配置 Caddy 反向代理
+## 第四步：配置 Nginx 反向代理
 
-将以下内容写入 `/etc/caddy/Caddyfile`（覆盖原有内容）：
+### 4.1 先申请 SSL 证书（Let's Encrypt）
 
-```caddy
-lenghuai.xyz {
-    reverse_proxy localhost:3000
+```bash
+# 安装 certbot
+sudo dnf install -y certbot python3-certbot-nginx
 
-    header {
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        Referrer-Policy strict-origin-when-cross-origin
+# 申请证书
+sudo certbot certonly --nginx -d lenghuai.xyz --non-interactive --agree-tos --email 你的邮箱
+```
+
+如果 certbot 也连不上外网，去阿里云控制台 → SSL 证书 → 免费证书申请，下载 nginx 格式的证书文件（.pem 和 .key），手动上传到 `/etc/nginx/certs/`。
+
+### 4.2 写入 Nginx 配置
+
+```bash
+sudo tee /etc/nginx/conf.d/robomate.conf << 'NGXEOF'
+server {
+    listen 443 ssl http2;
+    server_name lenghuai.xyz;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    # 安全头
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options DENY;
+    add_header Referrer-Policy strict-origin-when-cross-origin;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-```
 
-用命令写入：
-
-```bash
-sudo tee /etc/caddy/Caddyfile << 'CADDYEOF'
-lenghuai.xyz {
-    reverse_proxy localhost:3000
-
-    header {
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        Referrer-Policy strict-origin-when-cross-origin
-    }
+# HTTP → HTTPS 跳转
+server {
+    listen 80;
+    server_name lenghuai.xyz;
+    return 301 https://$host$request_uri;
 }
-CADDYEOF
+NGXEOF
 ```
 
-重载 Caddy（会自动为 lenghuai.xyz 申请 Let's Encrypt 证书）：
+如果用的是 certbot 自动申请的证书，证书路径通常是：
+- `ssl_certificate /etc/letsencrypt/live/lenghuai.xyz/fullchain.pem;`
+- `ssl_certificate_key /etc/letsencrypt/live/lenghuai.xyz/privkey.pem;`
+
+需要相应修改配置文件。
+
+### 4.3 创建证书目录（如果用阿里云证书）
 
 ```bash
-sudo systemctl reload caddy
+sudo mkdir -p /etc/nginx/certs
+# 把证书文件上传到这里后继续
 ```
 
-验证 Caddy 状态：
+### 4.4 测试并启动 Nginx
 
 ```bash
-sudo systemctl status caddy
+# 测试配置语法
+sudo nginx -t
+
+# 如果语法 ok，启动
+sudo systemctl enable --now nginx
+sudo systemctl status nginx
 ```
 
 ---
@@ -242,7 +231,7 @@ sudo firewall-cmd --list-services
 sudo firewall-cmd --list-ports
 ```
 
-**注意：不要暴露 3000 端口**，所有外部流量走 Caddy 443 进来。
+**注意：不要暴露 3000 端口**，所有外部流量走 Nginx 443 进来。
 
 **此外还要检查阿里云安全组**（阿里云控制台 → ECS → 安全组），确保入方向规则中 80 和 443 端口已放行，否则即使 firewalld 开了，公网也访问不到。
 
@@ -300,9 +289,10 @@ chmod +x deploy.sh
 
 | 问题 | 检查项 |
 |------|--------|
-| Caddy 启动失败 | `sudo systemctl status caddy` 看日志；确认域名 DNS 已指向服务器 IP |
+| Nginx 启动失败 | `sudo nginx -t` 检查配置语法；`sudo systemctl status nginx` 看日志 |
+| SSL 证书问题 | 证书路径是否正确；域名 DNS 是否指向服务器 IP |
 | 网站打不开 | `pm2 status` 确认 Node 进程 online；`curl http://localhost:3000/api/health` 测试本地 |
-| 提示「不是私密连接」 | Caddy 证书申请需要域名 DNS 已生效 + 80 端口可从公网访问，等待 1-2 分钟后重试 |
+| 提示「不是私密连接」 | 证书是否过期（`certbot renew`）；证书路径是否匹配域名 |
 | PM2 反复重启 | `pm2 logs robomate-center --lines 50` 看错误信息；确认 .env 文件存在且路径正确 |
 | DeepSeek 不生效 | 检查 .env 中 DEEPSEEK_API_KEY 是否正确；不配置也能用本地降级解析 |
 
@@ -311,6 +301,7 @@ chmod +x deploy.sh
 ## 重要提醒
 
 1. **DEEPSEEK_API_KEY 要填写真实的 API key**，位置在 `/opt/robomate-center/.env`
-2. **域名 DNS 必须先指向服务器 IP**，否则 Caddy 无法申请 SSL 证书
+2. **域名 DNS 必须先指向服务器 IP**，否则无法申请 SSL 证书
 3. 项目使用 Web Serial API 连接机器人，**用户浏览器也必须通过 HTTPS 访问**，所以 HTTPS 是刚需
 4. SQLite 数据库在 `data/robomate.db`，不要删除
+5. **如果 certbot 也连不上外网**，去阿里云控制台申请免费 SSL 证书（一年有效），下载 nginx 格式的证书文件（.pem 和 .key），放到 `/etc/nginx/certs/`

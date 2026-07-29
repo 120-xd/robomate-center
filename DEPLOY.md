@@ -87,13 +87,10 @@ caddy version  # 验证
 sudo mkdir -p /opt/robomate-center
 sudo chown $USER:$USER /opt/robomate-center
 
-# 克隆项目（替换为实际的 git 仓库地址）
+# 克隆项目
+git clone https://github.com/120-xd/robomate-center.git /opt/robomate-center
 cd /opt/robomate-center
-git init
-git remote add origin <你的 Git 仓库地址>
-git fetch origin
-git checkout <你的分支名，如 main 或 LH1>
-git pull origin <分支名>
+git checkout LH1
 
 # 安装依赖（--production=false 保留 devDependencies，因为需要 tailwindcss 编译 CSS）
 npm ci --production=false
@@ -282,7 +279,7 @@ curl https://lenghuai.xyz/api/health
 
 ```bash
 cd /opt/robomate-center
-git pull origin <分支名>
+git pull origin LH1
 npm ci --production=false
 npm run build:css
 pm2 reload robomate-center --update-env

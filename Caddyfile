@@ -1,0 +1,18 @@
+# RoboMate Center - Caddy 配置
+
+lenghuai.xyz {
+    # 反向代理到 Node 服务
+    reverse_proxy localhost:3000
+
+    # 安全头（Web Serial API 需要 HTTPS 安全上下文）
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    # 日志（可选，调试时打开）
+    # log {
+    #     output file /var/log/caddy/robomate-access.log
+    # }
+}

@@ -552,29 +552,17 @@ const App = (() => {
         }
     }
 
-    // Fallback local voice parsing
+    // Minimal frontend fallback — only used when backend is unreachable
     function localParseVoice(text) {
         const t = text.replace(/[，。！？、\s]/g, '').toLowerCase();
-        if (/前进|向前|往前|直走|走/.test(t)) {
-            const steps = t.match(/(\d+)/);
-            return steps ? `FW ${steps[1]}` : 'FW 1';
-        }
-        if (/后退|向后|往后退|倒车/.test(t)) {
-            const steps = t.match(/(\d+)/);
-            return steps ? `BW ${steps[1]}` : 'BW 1';
-        }
-        if (/左转|向左|往左/.test(t)) {
-            const steps = t.match(/(\d+)/);
-            return steps ? `LT ${steps[1]}` : 'LT 1';
-        }
-        if (/右转|向右|往右/.test(t)) {
-            const steps = t.match(/(\d+)/);
-            return steps ? `RT ${steps[1]}` : 'RT 1';
-        }
-        if (/太空步|太空|月球漫步|moonwalk/i.test(t)) return 'MW';
-        if (/归中|回中|回家|home/i.test(t)) return 'HOME';
-        if (/跳舞|舞蹈|dance/i.test(t)) return 'MW';
-        if (/停|停止|站住/.test(t)) return 'HOME';
+        const steps = (t.match(/(\d+)/) || [])[1] || '1';
+
+        if (/前进|向前|往前|直走/.test(t)) return `FW ${steps}`;
+        if (/后退|向后|往后退|倒车/.test(t)) return `BW ${steps}`;
+        if (/左转|向左|往左/.test(t))       return `LT ${steps}`;
+        if (/右转|向右|往右/.test(t))       return `RT ${steps}`;
+        if (/太空步|月球漫步|moonwalk|跳舞/i.test(t)) return 'MW';
+        if (/归中|回中|回家|停下|停止|站住/i.test(t)) return 'HOME';
         return null;
     }
 

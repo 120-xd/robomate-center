@@ -120,7 +120,7 @@ function filterCommands(commands, profile) {
     }).map(c => ({ cmd: c.cmd.toUpperCase().trim() }));
 }
 
-/** Fallback parser using profile shortcuts */
+/** Fallback parser — delegates to profile-aware logic */
 function fallbackParse(text, profile) {
     if (profile) {
         const result = profileManager.fallbackParse(profile, text);
@@ -131,35 +131,8 @@ function fallbackParse(text, profile) {
             model: 'fallback-profile'
         };
     }
-
-    // Generic fallback (no profile loaded)
-    const commands = [];
-    const t = text.replace(/[，。！？、\s]/g, '').toLowerCase();
-
-    const patterns = [
-        { regex: /前进|向前|往前|直走|走/, cmd: 'FW', defaultN: '1' },
-        { regex: /后退|向后|往后退|倒车/, cmd: 'BW', defaultN: '1' },
-        { regex: /左转|向左|往左/, cmd: 'LT', defaultN: '1' },
-        { regex: /右转|向右|往右/, cmd: 'RT', defaultN: '1' },
-    ];
-
-    for (const { regex, cmd, defaultN } of patterns) {
-        if (regex.test(t)) {
-            const steps = t.match(/(\d+)/);
-            commands.push({ cmd: `${cmd} ${steps ? steps[1] : defaultN}` });
-        }
-    }
-
-    if (/太空步|月球|moonwalk|跳舞|舞蹈/i.test(t)) commands.push({ cmd: 'MW' });
-    if (/转圈|一圈/.test(t)) commands.push({ cmd: 'RT 4' });
-    if (/归|停|home/i.test(t)) commands.push({ cmd: 'HOME' });
-
-    return {
-        original: text,
-        commands,
-        explanation: commands.length > 0 ? `本地解析: ${commands.map(c => c.cmd).join(' → ')}` : '',
-        model: 'fallback-generic'
-    };
+    // No profile loaded — should not happen in normal operation
+    return { original: text, commands: [], explanation: '', model: 'fallback-generic' };
 }
 
 /** Minimal default prompt when no profile is loaded */

@@ -5,8 +5,6 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const logger = require('./services/logger');
-const requestLogger = require('./middleware/requestLogger');
-const voiceService = require('./services/voice');
 const profileManager = require('./services/profileManager');
 const db = require('./db');
 
@@ -16,8 +14,6 @@ const PORT = process.env.PORT || 3000;
 // --------------- Middleware ---------------
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(requestLogger);
-
 // HTTP 请求日志 (dev-friendly format)
 app.use(morgan('dev', {
     stream: { write: msg => logger.info(msg.trim()) }
@@ -65,9 +61,10 @@ async function start() {
         logger.info('========================================');
 
         // Check voice service
-        const voiceReady = voiceService.checkConfig();
-        if (voiceReady) {
-            logger.info(`Voice service: ${voiceService.provider} configured`);
+        if (process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) {
+            logger.info('Voice service: azure configured');
+        } else if (process.env.OPENAI_API_KEY) {
+            logger.info('Voice service: openai configured');
         } else {
             logger.info('Voice service: not configured (set AZURE_SPEECH_KEY or OPENAI_API_KEY in .env)');
         }

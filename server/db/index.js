@@ -1,6 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const DB_PATH = process.env.DB_PATH || './data/robomate.db';
 const resolvedPath = path.resolve(DB_PATH);

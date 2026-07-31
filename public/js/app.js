@@ -76,6 +76,8 @@ const App = (() => {
             wrapper.innerHTML = `<span class="chat-label">${modelLabel}</span><span class="chat-text">${escapeHtml(text)}</span>`;
         } else if (type === 'cmd') {
             wrapper.innerHTML = `<span class="chat-text">已执行: ${escapeHtml(text)}</span>`;
+        } else if (type === 'code') {
+            wrapper.innerHTML = `<pre class="chat-code-block"><code>${escapeHtml(text)}</code></pre>`;
         } else {
             // system
             wrapper.innerHTML = `<span class="chat-text">${escapeHtml(text)}</span>`;
@@ -169,11 +171,11 @@ const App = (() => {
                 els.mainSphere.className = 'pearl-sphere sphere-idle';
                 els.listeningWave.classList.remove('hidden');
                 els.progressContainer.classList.add('hidden');
-                els.mainTip.innerText = '语音控制就绪';
-                els.subTip.innerText = '点击麦克风语音控制，或在下方输入自然语言指令';
+                els.mainTip.innerText = 'AI 编程助手就绪';
+                els.subTip.innerText = '说出你的想法，AI 帮你写代码控制机器人';
                 els.statusDot.className = 'w-2 h-2 rounded-full bg-blue-500';
                 els.connectionLabel.innerText = '已就绪';
-                els.robotStatusText.innerText = '在线 - 聆听中';
+                els.robotStatusText.innerText = '在线 - 等待指令';
                 els.btnBurn.disabled = true;
                 els.statusBar.style.opacity = '1';
                 els.actionGroup.classList.remove('opacity-30', 'pointer-events-none');
@@ -211,15 +213,15 @@ const App = (() => {
         } else if (cmd === 'HOME') {
             els.directionText.innerText = '归中';
         }
-        els.robotStatusText.innerText = `执行: ${cmd}`;
-        els.mainTip.innerText = `已发送指令: ${cmd}`;
+        els.robotStatusText.innerText = '机器人运动中...';
+        els.mainTip.innerText = '程序执行中...';
 
         clearTimeout(dirTimeout);
         dirTimeout = setTimeout(() => {
             els.directionIndicator.style.opacity = '0.2';
             els.directionText.innerText = '停止';
-            els.robotStatusText.innerText = '在线 - 聆听中';
-            els.mainTip.innerText = '语音控制就绪';
+            els.robotStatusText.innerText = '在线 - 等待指令';
+            els.mainTip.innerText = 'AI 编程助手就绪';
         }, 3000);
     }
 
@@ -313,9 +315,9 @@ const App = (() => {
         const label = getModelLabel();
         const name = state.activeModel.name;
         const hint = state.activeModel.type === 'vehicle'
-            ? '试试说「启动」开始避障，或「前进」「左转」手动控制'
-            : '试试说「前进三步」或「跳个舞」吧';
-        addChatMessage('ai', `你好！我是${label}，你的${name}助手～连接 USB 并烧录固件后，就可以语音控制机器人啦！${hint}！`);
+            ? '告诉我想让机器人怎么动，我来写控制代码！比如「前进三步」或「左转」'
+            : '告诉我想让机器人做什么，试试说「前进三步」或「跳个舞」，我来写代码实现！';
+        addChatMessage('ai', `你好！我是${label}，你的${name}编程助手～连接 USB 并烧录固件后，告诉我你想让机器人做什么，我来写代码实现！${hint}`);
     }
 
     // ========== Connection Flow ==========
@@ -423,10 +425,7 @@ const App = (() => {
             state.ready = true;
             setUIMode('ready');
             writeToTerminal(`SUCCESS: 固件部署完成！${result.pages} 页 / ${result.bytes} bytes / ${duration}ms`, true);
-            const cmdList = state.activeModel?.commands
-                ? state.activeModel.commands.map(c => c.cmd + (c.params ? ' ' + c.params : '')).join(' | ')
-                : 'FW N | BW N | LT N | RT N | MW | HOME';
-            writeToTerminal(`READY: 可用指令: ${cmdList}`);
+            writeToTerminal('机器人已就绪 — 在下方输入你的需求，AI 会帮你写代码控制机器人！');
 
             apiPost('/flash', {
                 firmwareVersion: 'v1.0.0',
@@ -492,7 +491,7 @@ const App = (() => {
 
         // Show user message in chat
         addChatMessage('user', text);
-        els.mainTip.innerText = 'AI 正在理解...';
+        els.mainTip.innerText = 'AI 正在思考...';
         await sendToAI(text, 'text');
     }
 
@@ -503,50 +502,59 @@ const App = (() => {
         await sendToAI(text, 'voice');
     }
 
-    // Shared: send text to backend AI, then execute returned commands
+    // Shared: send text to backend AI, then typewriter code → progress → execute
     async function sendToAI(text, source) {
         const result = await apiPost('/voice/command', { text });
 
         if (!result) {
             // Backend not available — use local fallback
-            addChatMessage('system', '后端服务不可用，使用本地解析');
+            addChatMessage('system', '离线模式，使用本地代码生成');
             const cmd = localParseVoice(text);
             if (cmd) {
-                addChatMessage('ai', `好的，执行指令: ${cmd}`);
+                const code = generateRobotCode([{ cmd }], text);
+                addChatMessage('ai', '好的，我帮你写了一段控制代码：');
+                els.mainTip.innerText = 'AI 正在编写代码...';
+                await typewriteCode(code);
+                await showChatProgress(1800);
                 await sendRawCommand(cmd);
+                els.mainTip.innerText = '程序执行完毕';
             } else {
-                addChatMessage('ai', '抱歉，我没听懂。试试说「前进三步」或者「跳舞」吧！');
-                els.mainTip.innerText = '无法理解，请再说一次';
+                addChatMessage('ai', '抱歉，我没太明白。试试说「前进三步」或者「跳个舞」吧～');
+                els.mainTip.innerText = '等待新指令';
             }
             return;
         }
 
         if (result.commands && result.commands.length > 0) {
-            // AI returned commands — show explanation and execute
+            // Show AI explanation
             if (result.explanation) {
                 addChatMessage('ai', result.explanation);
-            } else {
-                addChatMessage('ai', `好的，执行: ${result.commands.map(c => c.cmd).join(' → ')}`);
             }
-            els.mainTip.innerText = result.commands.map(c => c.cmd).join(' → ');
 
+            // Typewriter code display (AI-generated or local fallback)
+            const code = result.code || generateRobotCode(result.commands, text);
+            els.mainTip.innerText = 'AI 正在编写代码...';
+            await typewriteCode(code);
+
+            // Download progress animation in chat
+            await showChatProgress(1800);
+
+            // Execute commands silently (direction indicator still updates via sendRawCommand)
             for (const item of result.commands) {
-                addChatMessage('cmd', item.cmd);
                 await sendRawCommand(item.cmd);
                 await new Promise(r => setTimeout(r, 300));
             }
+
             apiPost('/commands', { command: result.commands.map(c => c.cmd).join(','), source, rawVoiceText: text });
-            els.mainTip.innerText = '语音控制就绪';
+            els.mainTip.innerText = '程序执行完毕';
         } else if (result.explanation) {
-            // AI returned a conversational response (no commands, just chat)
+            // Conversational response (no commands, just chat)
             addChatMessage('ai', result.explanation);
-            els.mainTip.innerText = '语音控制就绪';
+            els.mainTip.innerText = '等待新指令';
         } else if (result.error) {
-            // Legacy error field — convert to friendly message
             addChatMessage('ai', result.error);
             els.mainTip.innerText = result.error;
         } else {
-            // Nothing useful — fallback
             addChatMessage('ai', '抱歉，我没听懂。试试说「前进三步」或者「跳舞」吧！');
             els.mainTip.innerText = '无法理解，请再说一次';
         }
@@ -564,6 +572,124 @@ const App = (() => {
         if (/太空步|月球漫步|moonwalk|跳舞/i.test(t)) return 'MW';
         if (/归中|回中|回家|停下|停止|站住/i.test(t)) return 'HOME';
         return null;
+    }
+
+    // Generate Arduino-style code snippet from commands for display
+    function generateRobotCode(commands, userText) {
+        const lines = [];
+        lines.push('// ' + (userText || '机器人控制程序'));
+
+        for (const item of commands) {
+            const parts = item.cmd.split(/\s+/);
+            const op = parts[0];
+            const val = parts[1] || '1';
+
+            switch (op) {
+                case 'FW':
+                    lines.push(`robot.forward(${val});   // 前进${val}步`);
+                    break;
+                case 'BW':
+                    lines.push(`robot.backward(${val});  // 后退${val}步`);
+                    break;
+                case 'LT':
+                    lines.push(`robot.turnLeft(${val});  // 左转${val}步`);
+                    break;
+                case 'RT':
+                    lines.push(`robot.turnRight(${val}); // 右转${val}步`);
+                    break;
+                case 'MW':
+                    lines.push('robot.moonwalk();    // 太空步');
+                    break;
+                case 'HOME':
+                    lines.push('robot.goHome();      // 归中');
+                    break;
+                default:
+                    lines.push(`robot.execute("${item.cmd}");`);
+                    break;
+            }
+        }
+
+        return lines.join('\n');
+    }
+
+    // Typewriter effect: types code text character by character with blinking cursor
+    // Mimics real AI streaming speed (~30-50 chars/sec with natural pauses at line breaks)
+    async function typewriteCode(codeText) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'chat-msg chat-msg-code';
+
+        const pre = document.createElement('pre');
+        pre.className = 'chat-code-block';
+        const code = document.createElement('code');
+        const cursor = document.createElement('span');
+        cursor.className = 'typing-cursor';
+        cursor.textContent = '|';
+
+        pre.appendChild(code);
+        pre.appendChild(cursor);
+        wrapper.appendChild(pre);
+        els.chatPanel.appendChild(wrapper);
+        els.chatPanel.scrollTop = els.chatPanel.scrollHeight;
+
+        // Brief pause before typing starts (AI "thinking" moment)
+        await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
+
+        // Type each character with streaming-like speed
+        for (let i = 0; i < codeText.length; i++) {
+            code.textContent += codeText[i];
+            els.chatPanel.scrollTop = els.chatPanel.scrollHeight;
+
+            // Line break → longer pause (AI "reads" the line before continuing)
+            if (codeText[i] === '\n') {
+                await new Promise(r => setTimeout(r, 80 + Math.random() * 100));
+            } else {
+                // Normal character: ~15-35ms (simulates 30-60 chars/sec streaming)
+                await new Promise(r => setTimeout(r, 15 + Math.random() * 20));
+            }
+        }
+
+        // Remove blinking cursor after typing completes
+        await new Promise(r => setTimeout(r, 150));
+        cursor.remove();
+    }
+
+    // Show download progress bar in chat, animates to 100% over durationMs
+    async function showChatProgress(durationMs = 1500) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'chat-msg chat-msg-system';
+
+        const bar = document.createElement('div');
+        bar.className = 'chat-progress-bar';
+        const fill = document.createElement('div');
+        fill.className = 'chat-progress-fill';
+        bar.appendChild(fill);
+
+        const label = document.createElement('span');
+        label.className = 'chat-text';
+        label.textContent = '正在编译上传代码...';
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(bar);
+        els.chatPanel.appendChild(wrapper);
+        els.chatPanel.scrollTop = els.chatPanel.scrollHeight;
+
+        // Animate fill from 0% to 100%
+        const startTime = Date.now();
+        return new Promise(resolve => {
+            function tick() {
+                const elapsed = Date.now() - startTime;
+                const pct = Math.min(elapsed / durationMs * 100, 100);
+                fill.style.width = pct + '%';
+
+                if (pct < 100) {
+                    requestAnimationFrame(tick);
+                } else {
+                    label.textContent = '上传完成，机器人开始执行——';
+                    setTimeout(resolve, 400);
+                }
+            }
+            requestAnimationFrame(tick);
+        });
     }
 
     // ========== Web Speech API (Browser-based STT) ==========
@@ -629,8 +755,8 @@ const App = (() => {
         if (els.btnMic) els.btnMic.classList.remove('mic-active');
         if (els.micIndicator) els.micIndicator.innerText = '';
         if (state.ready) {
-            els.mainTip.innerText = '语音控制就绪';
-            els.subTip.innerText = '点击麦克风语音控制，或在下方输入自然语言指令';
+            els.mainTip.innerText = 'AI 编程助手就绪';
+            els.subTip.innerText = '说出你的想法，AI 帮你写代码控制机器人';
         }
     }
 

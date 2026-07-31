@@ -14,7 +14,7 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 /**
  * POST /api/voice/command
  * Body: { text: "往前走三步然后转一圈" }
- * Returns: { commands: [{cmd: "FW 3"}, {cmd: "RT 4"}], explanation: "...", modelId: "x1" }
+ * Returns: { commands: [{cmd: "FW 3"}], explanation: "...", code: "robot.forward(3);", modelId: "x1" }
  */
 router.post('/command', async (req, res) => {
     try {
@@ -87,10 +87,13 @@ router.post('/command', async (req, res) => {
 
         logger.info(`[${modelId}] AI parsed: "${text}" → [${validCommands.map(c => c.cmd).join(', ')}]`);
 
+        const code = parsed.code || generateCodeSnippet(validCommands);
+
         res.json({
             original: text,
             commands: validCommands,
             explanation: parsed.explanation || '',
+            code,
             error: parsed.error || '',
             model: 'deepseek-v4',
             modelId
@@ -128,11 +131,33 @@ function fallbackParse(text, profile) {
             original: text,
             commands: result.commands,
             explanation: result.explanation,
+            code: generateCodeSnippet(result.commands),
             model: 'fallback-profile'
         };
     }
     // No profile loaded — should not happen in normal operation
-    return { original: text, commands: [], explanation: '', model: 'fallback-generic' };
+    return { original: text, commands: [], explanation: '', code: '', model: 'fallback-generic' };
+}
+
+/** Generate Arduino-style code snippet from commands (local fallback) */
+function generateCodeSnippet(commands) {
+    if (!commands || commands.length === 0) return '';
+    const lines = [];
+    for (const item of commands) {
+        const parts = item.cmd.split(/\s+/);
+        const op = parts[0];
+        const val = parts[1] || '1';
+        switch (op) {
+            case 'FW': lines.push(`robot.forward(${val});   // 前进${val}步`); break;
+            case 'BW': lines.push(`robot.backward(${val});  // 后退${val}步`); break;
+            case 'LT': lines.push(`robot.turnLeft(${val});  // 左转${val}步`); break;
+            case 'RT': lines.push(`robot.turnRight(${val}); // 右转${val}步`); break;
+            case 'MW': lines.push('robot.moonwalk();    // 太空步'); break;
+            case 'HOME': lines.push('robot.goHome();      // 归中'); break;
+            default: lines.push(`robot.execute("${item.cmd}");`); break;
+        }
+    }
+    return lines.join('\n');
 }
 
 /** Minimal default prompt when no profile is loaded */

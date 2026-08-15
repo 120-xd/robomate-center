@@ -1,6 +1,6 @@
 {
-  "id": "x2",
-  "name": "RoboMate-X2",
+  "id": "LH2",
+  "name": "RoboMate-LH2",
   "type": "vehicle",
   "description": "智能避障小车，搭载三个超声波传感器，可自动检测并避开前、左、右三个方向的障碍物，遇障时亮红灯并蜂鸣报警",
   "hardware": {
@@ -41,7 +41,7 @@
   ],
   "commandFormat": "{CMD} {N}",
   "commandValidation": "^(FW|BW|LT|RT)\\s+\\d{1,2}$|^(START|STOP|HOME)$",
-  "firmware": "firmware/x2/robot_cmd.hex",
+  "firmware": "firmware/LH2/robot_cmd.hex",
   "semanticRules": {
     "defaultSteps": 1,
     "severalSteps": 3,
@@ -64,5 +64,5 @@
       "转个圈":  ["RT 4"]
     }
   },
-  "promptExtras": "X2 是智能避障小车，面向小学生。它有三个超声波传感器（前/左/右），能自动检测障碍物并转向避开。用户可以启动自主模式让它自己跑，也可以手动控制前进后退转弯。遇到障碍时 LED 会闪烁、蜂鸣器会发出不同频率的警报声。"
+  "promptExtras": "LH2 是智能避障小车，面向小学生。它有三个超声波传感器（前/左/右），能自动检测障碍物并转向避开。用户可以启动自主模式让它自己跑，也可以手动控制前进后退转弯。遇到障碍时 LED 会闪烁、蜂鸣器会发出不同频率的警报声。"
 }

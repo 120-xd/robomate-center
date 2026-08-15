@@ -1,7 +1,7 @@
 {
   "name": "robomate-center",
   "version": "1.0.0",
-  "description": "RoboMate-X1 AI voice control center - Web Serial + STK500v1 programmer + AI voice integration",
+  "description": "RoboMate AI voice control center - Web Serial + STK500v1 programmer + AI voice integration",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

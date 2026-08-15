@@ -1,6 +1,6 @@
 {
-  "id": "x1",
-  "name": "RoboMate-X1",
+  "id": "LH1",
+  "name": "RoboMate-LH1",
   "type": "humanoid",
   "description": "四舵机人形机器人，可前进、后退、左右转、太空步、跳舞",
   "hardware": {
@@ -25,7 +25,7 @@
   ],
   "commandFormat": "{CMD} {N}",
   "commandValidation": "^(FW|BW|LT|RT)\\s+\\d{1,2}$|^(MW|HOME)$",
-  "firmware": "firmware/x1/robot_cmd.hex",
+  "firmware": "firmware/LH1/robot_cmd.hex",
   "semanticRules": {
     "defaultSteps": 1,
     "severalSteps": 3,
@@ -52,5 +52,5 @@
       "停":      ["HOME"]
     }
   },
-  "promptExtras": "X1 是给小学生玩的入门人形机器人，适合走路、转圈、跳舞等互动。它有四条舵机腿，可以做出各种有趣的动作。"
+  "promptExtras": "LH1 是给小学生玩的入门人形机器人，适合走路、转圈、跳舞等互动。它有四条舵机腿，可以做出各种有趣的动作。"
 }

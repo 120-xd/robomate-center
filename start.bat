@@ -1,8 +1,8 @@
 @echo off
-title RoboMate-X1 Control Center
+title RoboMate Control Center
 
 echo ========================================
-echo   RoboMate-X1 Control Center v1.0
+echo   RoboMate Control Center v1.0
 echo ========================================
 echo.
 

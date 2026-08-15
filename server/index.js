@@ -54,7 +54,7 @@ async function start() {
 
     app.listen(PORT, () => {
         logger.info('========================================');
-        logger.info('  RoboMate-X1 Control Center v1.0');
+        logger.info('  RoboMate Control Center v1.0');
         logger.info(`  http://localhost:${PORT}`);
         logger.info(`  Environment: ${process.env.NODE_ENV || 'development'}`);
         logger.info(`  Models: ${profileManager.list().map(m => m.id).join(', ')} (active: ${profileManager.activeId})`);

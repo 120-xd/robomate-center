@@ -1,4 +1,4 @@
--- RoboMate-X1 数据库结构
+-- RoboMate 数据库结构
 -- SQLite
 
 -- 指令历史

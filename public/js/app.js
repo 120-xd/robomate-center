@@ -1,5 +1,5 @@
 /**
- * RoboMate-X1 — Application Controller
+ * RoboMate — Application Controller
  * UI state management, terminal, event coordination
  */
 
@@ -100,11 +100,11 @@ const App = (() => {
 
     // ========== Helpers ==========
     function getModelDisplayName() {
-        return state.activeModel ? state.activeModel.name : 'RoboMate-X1';
+        return state.activeModel ? state.activeModel.name : 'RoboMate-LH1';
     }
 
     function getModelLabel() {
-        return state.activeModel ? '小' + state.activeModel.id.toUpperCase() : '小X1';
+        return state.activeModel ? '小' + state.activeModel.id.toUpperCase() : '小LH1';
     }
 
     // ========== UI Modes ==========
@@ -383,7 +383,7 @@ const App = (() => {
             // Use active model's firmware path
             const firmwarePath = state.activeModel?.firmware
                 ? '/' + state.activeModel.firmware
-                : '/firmware/x1/robot_cmd.hex';
+                : '/firmware/LH1/robot_cmd.hex';
 
             let hexText;
             try {

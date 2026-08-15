@@ -14,7 +14,7 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 /**
  * POST /api/voice/command
  * Body: { text: "往前走三步然后转一圈" }
- * Returns: { commands: [{cmd: "FW 3"}], explanation: "...", code: "robot.forward(3);", modelId: "x1" }
+ * Returns: { commands: [{cmd: "FW 3"}], explanation: "...", code: "robot.forward(3);", modelId: "LH1" }
  */
 router.post('/command', async (req, res) => {
     try {

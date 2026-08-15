@@ -1,5 +1,5 @@
 /**
- * RoboMate-X1 — Web Serial + STK500v1 Core
+ * RoboMate — Web Serial + STK500v1 Core
  * 处理所有串口通信、烧录协议、指令发送
  */
 

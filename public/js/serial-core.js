@@ -31,10 +31,13 @@ const SerialCore = (() => {
         if (!isSupported()) {
             throw new Error('浏览器不支持 Web Serial API。请使用 Chrome 89+ 或 Edge 89+');
         }
+        console.log('[SerialCore] 请求串口权限（等待用户选择端口）...');
         port = await navigator.serial.requestPort();
+        console.log('[SerialCore] 端口已选择，打开 @ ' + baudRate + ' baud');
         await port.open({ baudRate, ...SERIAL_OPTIONS });
         writer = port.writable.getWriter();
         reader = port.readable.getReader();
+        console.log('[SerialCore] 串口已打开，reader/writer 就绪');
     }
 
     /** 断开串口 */
@@ -66,33 +69,52 @@ const SerialCore = (() => {
     /** DTR 复位进入 Bootloader */
     async function resetToBootloader() {
         try {
+            console.log('[SerialCore] DTR 复位: HIGH→LOW→HIGH（触发 Bootloader）');
             await port.setSignals({ dataTerminalReady: true });
             await sleep(10);
             await port.setSignals({ dataTerminalReady: false });
             await sleep(100);
             await port.setSignals({ dataTerminalReady: true });
             await sleep(300);
+            console.log('[SerialCore] DTR 复位完成');
         } catch (e) {
             // setSignals 不支持的驱动（少数 CH340）→ 寄希望于 port.open() 时的 DTR 翻转
+            console.warn('[SerialCore] setSignals 失败（驱动可能不支持）: ' + e.message);
             await sleep(300);
         }
     }
 
-    /** 清空串口接收缓冲区 */
+    /**
+     * 清空串口接收缓冲区。
+     * 带 1 秒总时间上限：避免主板持续吐数据时（应用固件未进 Bootloader）
+     * 陷入无限 while 循环，导致 UI 永远停在「初始化中」。
+     */
     async function flushInput() {
         if (!reader) return;
+        const start = Date.now();
+        const deadline = start + 1000;
+        let flushed = 0;
         try {
-            while (true) {
-                const chunk = await Promise.race([
-                    reader.read(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('FLUSH_DONE')), 150))
-                ]);
+            while (Date.now() < deadline) {
+                let chunk;
+                try {
+                    chunk = await Promise.race([
+                        reader.read(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('FLUSH_DONE')), 100))
+                    ]);
+                } catch (e) {
+                    if (e.message !== 'FLUSH_DONE') throw e;
+                    break; // 100ms 无新数据，认为已清空
+                }
                 if (chunk.done) break;
+                flushed += chunk.value?.length || 0;
             }
-        } catch (e) {
-            if (e.message !== 'FLUSH_DONE') throw e;
+        } finally {
+            // 无论走哪条路径，都要释放锁并重建 reader，
+            // 否则残留的 pending read 会污染后续 readResponse。
             try { reader.releaseLock(); } catch (_) {}
-            reader = port.readable.getReader();
+            try { reader = port.readable.getReader(); } catch (_) {}
+            console.log(`[SerialCore] flushInput 完成: 丢弃 ${flushed} 字节, 耗时 ${Date.now() - start}ms`);
         }
     }
 
@@ -150,6 +172,7 @@ const SerialCore = (() => {
      */
     async function syncTest() {
         for (const baud of BAUD_RATES) {
+            console.log(`[SerialCore] syncTest 尝试波特率 ${baud}`);
             if (baud !== 115200) await reopenPort(baud);
             await resetToBootloader();
             await flushInput();
@@ -158,12 +181,17 @@ const SerialCore = (() => {
                 try {
                     await writer.write(new Uint8Array([0x30, 0x20]));
                 } catch (e) {
+                    console.warn(`[SerialCore] writer 写入失败 @ ${baud}: ` + e.message);
                     break; // writer 损坏，跳到下一波特率
                 }
 
                 const { data: resp, complete } = await readResponse(2, 2000);
+                const hexStr = Array.from(resp).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+
+                console.log(`[SerialCore] sync 尝试${i + 1} @ ${baud}: complete=${complete} resp=[${hexStr}] (${resp.length} 字节)`);
 
                 if (complete && resp[0] === 0x14 && resp[1] === 0x10) {
+                    console.log(`[SerialCore] STK500 同步成功 @ ${baud}`);
                     return { success: true, hexStr: '0x14 0x10', raw: resp, timeout: false };
                 }
 
@@ -173,6 +201,7 @@ const SerialCore = (() => {
             }
         }
 
+        console.warn('[SerialCore] syncTest 全部波特率同步失败（无 STK500 应答）');
         return { success: false, hexStr: '', raw: new Uint8Array(0), timeout: true };
     }
 

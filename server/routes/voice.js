@@ -119,7 +119,7 @@ function filterCommands(commands, profile) {
             return new RegExp(validationPattern).test(cmd);
         }
         // Fallback default validation
-        return /^(FW|BW|LT|RT)\s+\d{1,2}$|^(MW|HOME|START|STOP)$/.test(cmd);
+        return /^(FW|BW|LT|RT)(\s+\d{1,2})?$|^(MW|HOME|START|STOP)$/.test(cmd);
     }).map(c => ({ cmd: c.cmd.toUpperCase().trim() }));
 }
 
@@ -153,6 +153,9 @@ function generateCodeSnippet(commands) {
             case 'LT': lines.push(`robot.turnLeft(${val});  // 左转${val}步`); break;
             case 'RT': lines.push(`robot.turnRight(${val}); // 右转${val}步`); break;
             case 'MW': lines.push('robot.moonwalk();    // 太空步'); break;
+            case 'FLAP': lines.push(`robot.flapArms(${val});   // 摆动手臂${val}下`); break;
+            case 'SWING': lines.push(`robot.swing(${val});      // 扭屁股${val}下`); break;
+            case 'WAVE': lines.push('robot.wave();        // 打招呼'); break;
             case 'HOME': lines.push('robot.goHome();      // 归中'); break;
             default: lines.push(`robot.execute("${item.cmd}");`); break;
         }

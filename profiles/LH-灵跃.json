@@ -1,0 +1,134 @@
+{
+  "id": "LH-灵跃",
+  "name": "RoboMate-LH-灵跃",
+  "type": "humanoid",
+  "description": "四舵机四足机器人，可跳跃、爬行、转向，带 OLED 表情屏",
+  "hardware": {
+    "chip": "ATmega328P",
+    "protocol": "stk500v1",
+    "baudRate": 115200,
+    "communication": "串口 115200 baud，每条指令以换行符结束",
+    "components": [
+      {
+        "name": "左前腿",
+        "pin": "D2",
+        "type": "servo"
+      },
+      {
+        "name": "右前腿",
+        "pin": "D3",
+        "type": "servo"
+      },
+      {
+        "name": "左后腿",
+        "pin": "D4",
+        "type": "servo"
+      },
+      {
+        "name": "右后腿",
+        "pin": "D5",
+        "type": "servo"
+      },
+      {
+        "name": "OLED屏幕",
+        "pin": "IIC",
+        "type": "oled"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "cmd": "FW",
+      "params": "1~20",
+      "desc": "前进 N 步",
+      "method": "forward",
+      "label": "前进",
+      "unit": "步"
+    },
+    {
+      "cmd": "BW",
+      "params": "1~20",
+      "desc": "后退 N 步",
+      "method": "backward",
+      "label": "后退",
+      "unit": "步"
+    },
+    {
+      "cmd": "LT",
+      "params": "1~20",
+      "desc": "左转 N 步",
+      "method": "turnLeft",
+      "label": "左转",
+      "unit": "步"
+    },
+    {
+      "cmd": "RT",
+      "params": "1~20",
+      "desc": "右转 N 步",
+      "method": "turnRight",
+      "label": "右转",
+      "unit": "步"
+    },
+    {
+      "cmd": "HOME",
+      "params": null,
+      "desc": "归中/停止",
+      "method": "goHome",
+      "label": "归中"
+    },
+    {
+      "cmd": "STOP",
+      "params": null,
+      "desc": "停止",
+      "method": "goHome",
+      "label": "停止"
+    }
+  ],
+  "commandFormat": "{CMD} {N}",
+  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(HOME|STOP)$",
+  "firmware": "firmware/LH-灵跃/robot_cmd.hex",
+  "semanticRules": {
+    "defaultSteps": 1,
+    "severalSteps": 3,
+    "maxSteps": 20,
+    "shortcuts": {
+      "前进": [
+        "FW {n}"
+      ],
+      "后退": [
+        "BW {n}"
+      ],
+      "左转": [
+        "LT {n}"
+      ],
+      "右转": [
+        "RT {n}"
+      ],
+      "转一圈": [
+        "RT 4"
+      ],
+      "转个圈": [
+        "RT 4"
+      ],
+      "旋转": [
+        "RT 4"
+      ],
+      "停下": [
+        "HOME"
+      ],
+      "站住": [
+        "HOME"
+      ],
+      "归位": [
+        "HOME"
+      ],
+      "回去": [
+        "HOME"
+      ],
+      "停": [
+        "HOME"
+      ]
+    }
+  },
+  "promptExtras": "LH8 是灵跃四足机器人，四个 180° 舵机控制四条腿，可以做出跳跃、爬行等灵活动作。头部还有一块 OLED 小屏幕，可以显示机器人的表情和状态。"
+}

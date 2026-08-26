@@ -100,11 +100,11 @@ const App = (() => {
 
     // ========== Helpers ==========
     function getModelDisplayName() {
-        return state.activeModel ? state.activeModel.name : 'RoboMate-LH1';
+        return state.activeModel ? state.activeModel.name : 'RoboMate';
     }
 
     function getModelLabel() {
-        return state.activeModel ? '小' + state.activeModel.id.toUpperCase() : '小LH1';
+        return state.activeModel ? '小' + state.activeModel.id.toUpperCase() : '小机器人';
     }
 
     // ========== UI Modes ==========
@@ -383,7 +383,7 @@ const App = (() => {
             // Use active model's firmware path
             const firmwarePath = state.activeModel?.firmware
                 ? '/' + state.activeModel.firmware
-                : '/firmware/LH1/robot_cmd.hex';
+                : '';
 
             let hexText;
             try {
@@ -474,7 +474,7 @@ const App = (() => {
 
     // Check if text looks like a raw command (e.g. "FW 3", "HOME", "MW")
     function isRawCommand(text) {
-        return /^(FW|BW|LT|RT|MW|HOME)(\s+\d+)?$/i.test(text.trim());
+        return /^(FW|BW|LT|RT|MW|HOME|STOP|START|FLAP|SWING|WAVE)(\s+\d+)?$/i.test(text.trim());
     }
 
     // ========== Smart Text Command (text input → maybe AI → execute) ==========
@@ -570,6 +570,9 @@ const App = (() => {
         if (/左转|向左|往左/.test(t))       return `LT ${steps}`;
         if (/右转|向右|往右/.test(t))       return `RT ${steps}`;
         if (/太空步|月球漫步|moonwalk|跳舞/i.test(t)) return 'MW';
+        if (/摆动手臂|挥动手臂|摆臂|挥臂/.test(t)) return `FLAP ${steps}`;
+        if (/扭屁股|摇摆|晃晃|扭扭/.test(t))       return `SWING ${steps}`;
+        if (/打招呼|挥手|挥挥手|问好/.test(t))      return 'WAVE';
         if (/归中|回中|回家|停下|停止|站住/i.test(t)) return 'HOME';
         return null;
     }
@@ -599,6 +602,15 @@ const App = (() => {
                     break;
                 case 'MW':
                     lines.push('robot.moonwalk();    // 太空步');
+                    break;
+                case 'FLAP':
+                    lines.push(`robot.flapArms(${val});   // 摆动手臂${val}下`);
+                    break;
+                case 'SWING':
+                    lines.push(`robot.swing(${val});      // 扭屁股${val}下`);
+                    break;
+                case 'WAVE':
+                    lines.push('robot.wave();        // 打招呼');
                     break;
                 case 'HOME':
                     lines.push('robot.goHome();      // 归中');

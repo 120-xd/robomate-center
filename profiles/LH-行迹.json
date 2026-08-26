@@ -1,0 +1,124 @@
+{
+  "id": "LH-行迹",
+  "name": "RoboMate-LH-行迹",
+  "type": "vehicle",
+  "description": "双舵机轮式机器人，可前进、后退、左右转",
+  "hardware": {
+    "chip": "ATmega328P",
+    "protocol": "stk500v1",
+    "baudRate": 115200,
+    "communication": "串口 115200 baud，每条指令以换行符结束",
+    "components": [
+      {
+        "name": "左轮",
+        "pin": "D2",
+        "type": "servo_360"
+      },
+      {
+        "name": "右轮",
+        "pin": "D3",
+        "type": "servo_360"
+      },
+      {
+        "name": "超声波传感器",
+        "pin": "D8/D9",
+        "type": "ultrasonic"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "cmd": "FW",
+      "params": "1~20",
+      "desc": "前进 N 步",
+      "method": "forward",
+      "label": "前进",
+      "unit": "步"
+    },
+    {
+      "cmd": "BW",
+      "params": "1~20",
+      "desc": "后退 N 步",
+      "method": "backward",
+      "label": "后退",
+      "unit": "步"
+    },
+    {
+      "cmd": "LT",
+      "params": "1~20",
+      "desc": "左转 N 步",
+      "method": "turnLeft",
+      "label": "左转",
+      "unit": "步"
+    },
+    {
+      "cmd": "RT",
+      "params": "1~20",
+      "desc": "右转 N 步",
+      "method": "turnRight",
+      "label": "右转",
+      "unit": "步"
+    },
+    {
+      "cmd": "HOME",
+      "params": null,
+      "desc": "归中/停止",
+      "method": "goHome",
+      "label": "归中"
+    },
+    {
+      "cmd": "STOP",
+      "params": null,
+      "desc": "停止",
+      "method": "goHome",
+      "label": "停止"
+    }
+  ],
+  "commandFormat": "{CMD} {N}",
+  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(HOME|STOP)$",
+  "firmware": "firmware/LH-行迹/robot_cmd.hex",
+  "semanticRules": {
+    "defaultSteps": 1,
+    "severalSteps": 3,
+    "maxSteps": 20,
+    "shortcuts": {
+      "前进": [
+        "FW {n}"
+      ],
+      "后退": [
+        "BW {n}"
+      ],
+      "左转": [
+        "LT {n}"
+      ],
+      "右转": [
+        "RT {n}"
+      ],
+      "转一圈": [
+        "RT 4"
+      ],
+      "转个圈": [
+        "RT 4"
+      ],
+      "旋转": [
+        "RT 4"
+      ],
+      "停下": [
+        "HOME"
+      ],
+      "站住": [
+        "HOME"
+      ],
+      "归位": [
+        "HOME"
+      ],
+      "回去": [
+        "HOME"
+      ],
+      "停": [
+        "HOME"
+      ]
+    }
+  },
+  "promptExtras": "LH9 是行迹轮式机器人，两个 360° 舵机驱动左右轮，结构简单，适合学习基础的运动控制。"
+}

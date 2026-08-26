@@ -1,0 +1,154 @@
+{
+  "id": "LH-岩爪",
+  "name": "RoboMate-LH-岩爪",
+  "type": "humanoid",
+  "description": "八舵机四足机器人，每条腿两节，可爬行、转向",
+  "hardware": {
+    "chip": "ATmega328P",
+    "protocol": "stk500v1",
+    "baudRate": 115200,
+    "communication": "串口 115200 baud，每条指令以换行符结束",
+    "components": [
+      {
+        "name": "左前上",
+        "pin": "D2",
+        "type": "servo"
+      },
+      {
+        "name": "右前上",
+        "pin": "D3",
+        "type": "servo"
+      },
+      {
+        "name": "左后上",
+        "pin": "D4",
+        "type": "servo"
+      },
+      {
+        "name": "右后上",
+        "pin": "D5",
+        "type": "servo"
+      },
+      {
+        "name": "左前下",
+        "pin": "D6",
+        "type": "servo"
+      },
+      {
+        "name": "右前下",
+        "pin": "D7",
+        "type": "servo"
+      },
+      {
+        "name": "左后下",
+        "pin": "D8",
+        "type": "servo"
+      },
+      {
+        "name": "右后下",
+        "pin": "D9",
+        "type": "servo"
+      },
+      {
+        "name": "超声波传感器",
+        "pin": "D10/D11",
+        "type": "ultrasonic"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "cmd": "FW",
+      "params": "1~20",
+      "desc": "前进 N 步",
+      "method": "forward",
+      "label": "前进",
+      "unit": "步"
+    },
+    {
+      "cmd": "BW",
+      "params": "1~20",
+      "desc": "后退 N 步",
+      "method": "backward",
+      "label": "后退",
+      "unit": "步"
+    },
+    {
+      "cmd": "LT",
+      "params": "1~20",
+      "desc": "左转 N 步",
+      "method": "turnLeft",
+      "label": "左转",
+      "unit": "步"
+    },
+    {
+      "cmd": "RT",
+      "params": "1~20",
+      "desc": "右转 N 步",
+      "method": "turnRight",
+      "label": "右转",
+      "unit": "步"
+    },
+    {
+      "cmd": "HOME",
+      "params": null,
+      "desc": "归中/停止",
+      "method": "goHome",
+      "label": "归中"
+    },
+    {
+      "cmd": "STOP",
+      "params": null,
+      "desc": "停止",
+      "method": "goHome",
+      "label": "停止"
+    }
+  ],
+  "commandFormat": "{CMD} {N}",
+  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(HOME|STOP)$",
+  "firmware": "firmware/LH-岩爪/robot_cmd.hex",
+  "semanticRules": {
+    "defaultSteps": 1,
+    "severalSteps": 3,
+    "maxSteps": 20,
+    "shortcuts": {
+      "前进": [
+        "FW {n}"
+      ],
+      "后退": [
+        "BW {n}"
+      ],
+      "左转": [
+        "LT {n}"
+      ],
+      "右转": [
+        "RT {n}"
+      ],
+      "转一圈": [
+        "RT 4"
+      ],
+      "转个圈": [
+        "RT 4"
+      ],
+      "旋转": [
+        "RT 4"
+      ],
+      "停下": [
+        "HOME"
+      ],
+      "站住": [
+        "HOME"
+      ],
+      "归位": [
+        "HOME"
+      ],
+      "回去": [
+        "HOME"
+      ],
+      "停": [
+        "HOME"
+      ]
+    }
+  },
+  "promptExtras": "LH4 是四足爬行机器人，有 8 个 180° 舵机，每条腿分上下两节，像昆虫一样爬行。它可以前进、后退、左右转，还能做出各种有趣的爬行姿态。"
+}

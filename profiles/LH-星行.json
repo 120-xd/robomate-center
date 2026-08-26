@@ -1,0 +1,238 @@
+{
+  "id": "LH-星行",
+  "name": "RoboMate-LH-星行",
+  "type": "humanoid",
+  "description": "四舵机人形机器人，可前进、后退、左右转、摆臂、扭屁股、太空步、打招呼",
+  "hardware": {
+    "chip": "ATmega328P",
+    "protocol": "stk500v1",
+    "baudRate": 115200,
+    "communication": "串口 115200 baud，每条指令以换行符结束",
+    "components": [
+      {
+        "name": "左腿",
+        "pin": "D10",
+        "type": "servo"
+      },
+      {
+        "name": "右腿",
+        "pin": "D11",
+        "type": "servo"
+      },
+      {
+        "name": "左脚",
+        "pin": "D2",
+        "type": "servo"
+      },
+      {
+        "name": "右脚",
+        "pin": "D3",
+        "type": "servo"
+      },
+      {
+        "name": "超声波传感器",
+        "pin": "D8/D9",
+        "type": "ultrasonic"
+      },
+      {
+        "name": "蜂鸣器",
+        "pin": "D13",
+        "type": "buzzer"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "cmd": "FW",
+      "params": "1~20",
+      "desc": "前进 N 步",
+      "method": "forward",
+      "label": "前进",
+      "unit": "步"
+    },
+    {
+      "cmd": "BW",
+      "params": "1~20",
+      "desc": "后退 N 步",
+      "method": "backward",
+      "label": "后退",
+      "unit": "步"
+    },
+    {
+      "cmd": "LT",
+      "params": "1~20",
+      "desc": "左转 N 步",
+      "method": "turnLeft",
+      "label": "左转",
+      "unit": "步"
+    },
+    {
+      "cmd": "RT",
+      "params": "1~20",
+      "desc": "右转 N 步",
+      "method": "turnRight",
+      "label": "右转",
+      "unit": "步"
+    },
+    {
+      "cmd": "MW",
+      "params": null,
+      "desc": "太空步（月球漫步）",
+      "method": "moonwalk",
+      "label": "太空步"
+    },
+    {
+      "cmd": "HOME",
+      "params": null,
+      "desc": "归中/停止/回到原点",
+      "method": "goHome",
+      "label": "归中"
+    },
+    {
+      "cmd": "STOP",
+      "params": null,
+      "desc": "紧急停止",
+      "method": "goHome",
+      "label": "停止"
+    },
+    {
+      "cmd": "FLAP",
+      "params": "1~20",
+      "desc": "摆动手臂 N 下",
+      "method": "flapArms",
+      "label": "摆动手臂",
+      "unit": "下"
+    },
+    {
+      "cmd": "SWING",
+      "params": "1~20",
+      "desc": "扭屁股/左右摇摆 N 下",
+      "method": "swing",
+      "label": "扭屁股",
+      "unit": "下"
+    },
+    {
+      "cmd": "WAVE",
+      "params": null,
+      "desc": "打招呼（挥动一只手）",
+      "method": "wave",
+      "label": "打招呼"
+    }
+  ],
+  "commandFormat": "{CMD} {N}",
+  "commandValidation": "^(FW|BW|LT|RT|FLAP|SWING)(\\s+\\d{1,2})?$|^(MW|WAVE|HOME|STOP)$",
+  "firmware": "firmware/LH-星行/robot_cmd.hex",
+  "semanticRules": {
+    "defaultSteps": 1,
+    "severalSteps": 3,
+    "maxSteps": 20,
+    "shortcuts": {
+      "前进": [
+        "FW {n}"
+      ],
+      "后退": [
+        "BW {n}"
+      ],
+      "左转": [
+        "LT {n}"
+      ],
+      "右转": [
+        "RT {n}"
+      ],
+      "转一圈": [
+        "RT 4"
+      ],
+      "转个圈": [
+        "RT 4"
+      ],
+      "旋转": [
+        "RT 4"
+      ],
+      "扭屁股": [
+        "SWING {n}"
+      ],
+      "摇摆": [
+        "SWING {n}"
+      ],
+      "晃晃": [
+        "SWING {n}"
+      ],
+      "摆动手臂": [
+        "FLAP {n}"
+      ],
+      "挥动手臂": [
+        "FLAP {n}"
+      ],
+      "挥挥手": [
+        "WAVE"
+      ],
+      "挥手": [
+        "WAVE"
+      ],
+      "打招呼": [
+        "WAVE"
+      ],
+      "跳舞": [
+        "MW"
+      ],
+      "跳个舞": [
+        "MW"
+      ],
+      "太空步": [
+        "MW"
+      ],
+      "月球漫步": [
+        "MW"
+      ],
+      "停下": [
+        "HOME"
+      ],
+      "站住": [
+        "HOME"
+      ],
+      "归位": [
+        "HOME"
+      ],
+      "回去": [
+        "HOME"
+      ],
+      "停": [
+        "HOME"
+      ]
+    }
+  },
+  "directionMap": {
+    "FW": {
+      "label": "前进",
+      "angle": 0
+    },
+    "BW": {
+      "label": "后退",
+      "angle": 180
+    },
+    "LT": {
+      "label": "左转",
+      "angle": -90
+    },
+    "RT": {
+      "label": "右转",
+      "angle": 90
+    },
+    "MW": {
+      "label": "太空步"
+    },
+    "FLAP": {
+      "label": "摆动手臂"
+    },
+    "SWING": {
+      "label": "扭屁股"
+    },
+    "WAVE": {
+      "label": "打招呼"
+    },
+    "HOME": {
+      "label": "归中"
+    }
+  },
+  "promptExtras": "星行是给小学生玩的人形机器人，适合走路、转圈、摆臂、扭屁股、太空步、打招呼等互动。它有四条舵机腿，可以做出各种有趣的动作。上电后默认会持续前进，遇到障碍会先摆臂做太空步再左转避开。"
+}

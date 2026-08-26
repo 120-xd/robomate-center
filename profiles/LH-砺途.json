@@ -1,0 +1,216 @@
+{
+  "id": "LH-砺途",
+  "name": "RoboMate-LH-砺途",
+  "type": "vehicle",
+  "description": "智能避障小车，搭载三个超声波传感器，可自动检测并避开前、左、右三个方向的障碍物，遇障时亮红灯并蜂鸣报警",
+  "hardware": {
+    "chip": "ATmega328P",
+    "protocol": "stk500v1",
+    "baudRate": 115200,
+    "communication": "串口 115200 baud，每条指令以换行符结束",
+    "components": [
+      {
+        "name": "左前轮",
+        "pin": "D2",
+        "type": "servo_360"
+      },
+      {
+        "name": "右前轮",
+        "pin": "D3",
+        "type": "servo_360"
+      },
+      {
+        "name": "左后轮",
+        "pin": "D4",
+        "type": "servo_360"
+      },
+      {
+        "name": "右后轮",
+        "pin": "D5",
+        "type": "servo_360"
+      },
+      {
+        "name": "前方超声波传感器",
+        "pin": "D8/D9",
+        "type": "ultrasonic"
+      },
+      {
+        "name": "左侧超声波传感器",
+        "pin": "D10/D11",
+        "type": "ultrasonic"
+      },
+      {
+        "name": "右侧超声波传感器",
+        "pin": "D6/D7",
+        "type": "ultrasonic"
+      },
+      {
+        "name": "LED指示灯",
+        "pin": "D13",
+        "type": "led"
+      },
+      {
+        "name": "蜂鸣器",
+        "pin": "D12",
+        "type": "buzzer"
+      }
+    ],
+    "calibration": {
+      "servoMid": 87,
+      "speed": 20,
+      "backRightOffset": 1
+    },
+    "thresholds": {
+      "frontStop": "20cm",
+      "frontSlow": "30cm",
+      "side": "15cm"
+    }
+  },
+  "commands": [
+    {
+      "cmd": "START",
+      "params": null,
+      "desc": "启动自主避障模式，小车自动行驶并避障",
+      "method": "startAuto",
+      "label": "启动避障"
+    },
+    {
+      "cmd": "STOP",
+      "params": null,
+      "desc": "停止/紧急刹车",
+      "method": "emergencyStop",
+      "label": "停止"
+    },
+    {
+      "cmd": "FW",
+      "params": "1~20",
+      "desc": "手动前进 N 步",
+      "method": "forward",
+      "label": "前进",
+      "unit": "步"
+    },
+    {
+      "cmd": "BW",
+      "params": "1~20",
+      "desc": "手动后退 N 步",
+      "method": "backward",
+      "label": "后退",
+      "unit": "步"
+    },
+    {
+      "cmd": "LT",
+      "params": "1~20",
+      "desc": "手动左转 N 步",
+      "method": "turnLeft",
+      "label": "左转",
+      "unit": "步"
+    },
+    {
+      "cmd": "RT",
+      "params": "1~20",
+      "desc": "手动右转 N 步",
+      "method": "turnRight",
+      "label": "右转",
+      "unit": "步"
+    },
+    {
+      "cmd": "HOME",
+      "params": null,
+      "desc": "归中/停止",
+      "method": "goHome",
+      "label": "归中"
+    }
+  ],
+  "commandFormat": "{CMD} {N}",
+  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(START|STOP|HOME)$",
+  "firmware": "firmware/LH-砺途/robot_cmd.hex",
+  "semanticRules": {
+    "defaultSteps": 1,
+    "severalSteps": 3,
+    "maxSteps": 20,
+    "shortcuts": {
+      "启动": [
+        "START"
+      ],
+      "开始": [
+        "START"
+      ],
+      "出发": [
+        "START"
+      ],
+      "走": [
+        "START"
+      ],
+      "自动": [
+        "START"
+      ],
+      "避障": [
+        "START"
+      ],
+      "巡逻": [
+        "START"
+      ],
+      "停下": [
+        "STOP"
+      ],
+      "停止": [
+        "STOP"
+      ],
+      "刹车": [
+        "STOP"
+      ],
+      "站住": [
+        "STOP"
+      ],
+      "归位": [
+        "HOME"
+      ],
+      "前进": [
+        "FW {n}"
+      ],
+      "后退": [
+        "BW {n}"
+      ],
+      "左转": [
+        "LT {n}"
+      ],
+      "右转": [
+        "RT {n}"
+      ],
+      "转一圈": [
+        "RT 4"
+      ],
+      "转个圈": [
+        "RT 4"
+      ]
+    }
+  },
+  "directionMap": {
+    "FW": {
+      "label": "前进",
+      "angle": 0
+    },
+    "BW": {
+      "label": "后退",
+      "angle": 180
+    },
+    "LT": {
+      "label": "左转",
+      "angle": -90
+    },
+    "RT": {
+      "label": "右转",
+      "angle": 90
+    },
+    "START": {
+      "label": "自主避障"
+    },
+    "STOP": {
+      "label": "停止"
+    },
+    "HOME": {
+      "label": "归中"
+    }
+  },
+  "promptExtras": "LH2 是智能避障小车，面向小学生。它有三个超声波传感器（前/左/右），能自动检测障碍物并转向避开。用户可以启动自主模式让它自己跑，也可以手动控制前进后退转弯。遇到障碍时 LED 会闪烁、蜂鸣器会发出不同频率的警报声。"
+}

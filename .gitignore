@@ -8,3 +8,4 @@ data/*.sqlite
 .DS_Store
 Thumbs.db
 dist/
+_build/

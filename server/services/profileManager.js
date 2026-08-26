@@ -157,7 +157,7 @@ code 字段要求：
 - 第一行用 // 写上这段代码的功能（中文）
 - 每行一条 robot.xxx() 调用，行尾用 // 注释说明中文含义
 - 不需要 #include、setup()、loop() 等框架代码，只写核心控制语句
-- 对应关系：FW → robot.forward, BW → robot.backward, LT → robot.turnLeft, RT → robot.turnRight, MW → robot.moonwalk, HOME → robot.goHome
+- 对应关系：FW → robot.forward, BW → robot.backward, LT → robot.turnLeft, RT → robot.turnRight, MW → robot.moonwalk, FLAP → robot.flapArms, SWING → robot.swing, WAVE → robot.wave, HOME → robot.goHome
 - 代码要通俗易懂，让小学生也能看懂「AI 写的代码」
 
 如果是指令+闲聊混合：先处理指令，explanation 里既回应闲聊又说明指令

@@ -151,8 +151,8 @@ void cruiseForward() {
     int d = getDistance();
 
     if (d > 0 && d < 20) {
-        // 遇障：摆动两个手臂 → 太空步 → 左转
-        otto1.flapping(2, 800, 20, 1);
+        // 遇障：挥手（真正的手舵机）→ 太空步 → 左转
+        waveGesture();
         otto1.moonwalker(2, 800, 25, 1);
         otto1.turn(2, 2000, LEFT);
     } else {

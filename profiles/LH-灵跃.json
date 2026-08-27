@@ -82,10 +82,24 @@
       "desc": "停止",
       "method": "goHome",
       "label": "停止"
+    },
+    {
+      "cmd": "TXT",
+      "params": "<文字>",
+      "desc": "OLED 屏幕显示文字（参数为要显示的中文或英文内容，例如 TXT 你好）",
+      "method": "display",
+      "label": "显示"
+    },
+    {
+      "cmd": "CLS",
+      "params": null,
+      "desc": "清空 OLED 屏幕",
+      "method": "clearScreen",
+      "label": "清屏"
     }
   ],
-  "commandFormat": "{CMD} {N}",
-  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(HOME|STOP)$",
+  "commandFormat": "{CMD} [参数]",
+  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(HOME|STOP|CLS)$|^TXT\\s+.+$",
   "firmware": "firmware/LH-灵跃/robot_cmd.hex",
   "semanticRules": {
     "defaultSteps": 1,
@@ -130,5 +144,5 @@
       ]
     }
   },
-  "promptExtras": "LH8 是灵跃四足机器人，四个 180° 舵机控制四条腿，可以做出跳跃、爬行等灵活动作。头部还有一块 OLED 小屏幕，可以显示机器人的表情和状态。"
+  "promptExtras": "LH8 是灵跃四足机器人，四个 180° 舵机控制四条腿，可以做出跳跃、爬行等灵活动作。头部还有一块 OLED 小屏幕（128x64），可以显示文字。当用户想让机器人「显示/写上/打出」某个词或句子时，用 TXT 指令把要显示的文字作为参数发出去，例如用户说「显示你好」就返回 TXT 你好。每次最多显示约 20 个汉字，超长内容会自动截断。"
 }

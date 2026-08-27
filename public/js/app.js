@@ -474,7 +474,8 @@ const App = (() => {
 
     // Check if text looks like a raw command (e.g. "FW 3", "HOME", "MW")
     function isRawCommand(text) {
-        return /^(FW|BW|LT|RT|MW|HOME|STOP|START|FLAP|SWING|WAVE)(\s+\d+)?$/i.test(text.trim());
+        return /^(FW|BW|LT|RT|MW|HOME|STOP|START|FLAP|SWING|WAVE)(\s+\d+)?$/i.test(text.trim())
+            || /^TXT\s+.+$|^CLS$/i.test(text.trim());
     }
 
     // ========== Smart Text Command (text input → maybe AI → execute) ==========
@@ -565,6 +566,8 @@ const App = (() => {
         const t = text.replace(/[，。！？、\s]/g, '').toLowerCase();
         const steps = (t.match(/(\d+)/) || [])[1] || '1';
 
+        const showMatch = text.match(/(?:显示屏显示|屏幕显示|显示|写上|打出)\s*(.+)/);
+        if (showMatch && showMatch[1].trim()) return `TXT ${showMatch[1].trim()}`;
         if (/前进|向前|往前|直走/.test(t)) return `FW ${steps}`;
         if (/后退|向后|往后退|倒车/.test(t)) return `BW ${steps}`;
         if (/左转|向左|往左/.test(t))       return `LT ${steps}`;
@@ -614,6 +617,14 @@ const App = (() => {
                     break;
                 case 'HOME':
                     lines.push('robot.goHome();      // 归中');
+                    break;
+                case 'TXT': {
+                    const t = item.cmd.replace(/^TXT\s+/i, '');
+                    lines.push(`robot.display("${t}");   // 显示「${t}」`);
+                    break;
+                }
+                case 'CLS':
+                    lines.push('robot.clearScreen(); // 清屏');
                     break;
                 default:
                     lines.push(`robot.execute("${item.cmd}");`);

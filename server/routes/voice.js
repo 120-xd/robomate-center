@@ -157,6 +157,8 @@ function generateCodeSnippet(commands) {
             case 'SWING': lines.push(`robot.swing(${val});      // 扭屁股${val}下`); break;
             case 'WAVE': lines.push('robot.wave();        // 打招呼'); break;
             case 'HOME': lines.push('robot.goHome();      // 归中'); break;
+            case 'TXT': { const t = item.cmd.replace(/^TXT\s+/i, ''); lines.push(`robot.display("${t}");   // 显示「${t}」`); } break;
+            case 'CLS': lines.push('robot.clearScreen(); // 清屏'); break;
             default: lines.push(`robot.execute("${item.cmd}");`); break;
         }
     }

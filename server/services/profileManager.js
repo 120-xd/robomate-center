@@ -157,7 +157,7 @@ code 字段要求：
 - 第一行用 // 写上这段代码的功能（中文）
 - 每行一条 robot.xxx() 调用，行尾用 // 注释说明中文含义
 - 不需要 #include、setup()、loop() 等框架代码，只写核心控制语句
-- 对应关系：FW → robot.forward, BW → robot.backward, LT → robot.turnLeft, RT → robot.turnRight, MW → robot.moonwalk, FLAP → robot.flapArms, SWING → robot.swing, WAVE → robot.wave, HOME → robot.goHome
+- 对应关系：FW → robot.forward, BW → robot.backward, LT → robot.turnLeft, RT → robot.turnRight, MW → robot.moonwalk, FLAP → robot.flapArms, SWING → robot.swing, WAVE → robot.wave, HOME → robot.goHome, TXT → robot.display, CLS → robot.clearScreen
 - 代码要通俗易懂，让小学生也能看懂「AI 写的代码」
 
 如果是指令+闲聊混合：先处理指令，explanation 里既回应闲聊又说明指令
@@ -200,8 +200,11 @@ code 字段要求：
                 }
             }
             if (!matched) {
-                // Try generic direction matching
-                if (/前进|向前|往前|直走/.test(pt)) {
+                // 显示文字：显示/写上/打出 xxx → TXT xxx
+                const showMatch = part.match(/^(?:显示屏显示|屏幕显示|显示|写上|打出)\s*(.+)$/);
+                if (showMatch && showMatch[1].trim()) {
+                    commands.push({ cmd: `TXT ${showMatch[1].trim()}` });
+                } else if (/前进|向前|往前|直走/.test(pt)) {
                     const steps = pt.match(/(\d+)/);
                     commands.push({ cmd: `FW ${steps ? steps[1] : '1'}` });
                 } else if (/后退|向后|往后退|倒车/.test(pt)) {

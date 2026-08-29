@@ -1,12 +1,11 @@
 {
   "id":"LH-砺途","name":"RoboMate-LH-砺途","type":"vehicle",
-  "description":"四轮智能避障车，使用前、左、右三路超声波自动避障，并用D13 LED和D12蜂鸣器提示。",
+  "description":"四轮智能避障车，使用前、左、右三路超声波自动避障。",
   "hardware":{"chip":"ATmega328P","protocol":"stk500v1","baudRate":115200,"communication":"串口115200，每条命令以换行结束","components":[
     {"name":"左前/右前/左后/右后360度舵机","pin":"D2/D3/D4/D5","type":"servo_360"},
     {"name":"左侧超声波","pin":"D6/D7","type":"ultrasonic"},
     {"name":"右侧超声波","pin":"D8/D9","type":"ultrasonic"},
-    {"name":"前方超声波","pin":"D10/D11","type":"ultrasonic"},
-    {"name":"蜂鸣器","pin":"D12","type":"buzzer"},{"name":"状态LED","pin":"D13","type":"led"}]},
+    {"name":"前方超声波","pin":"D10/D11","type":"ultrasonic"}]},
   "commands":[
     {"cmd":"START","params":null,"desc":"启动三路超声波自动避障","method":"startAuto","label":"启动避障"},
     {"cmd":"STOP","params":null,"desc":"停止电机、关闭提示并退出自动模式","method":"emergencyStop","label":"紧急停止"},
@@ -14,13 +13,10 @@
     {"cmd":"BW","params":"1~20","desc":"手动后退N步","method":"backward","label":"后退","unit":"步"},
     {"cmd":"LT","params":"1~20","desc":"手动左转N步","method":"turnLeft","label":"左转","unit":"步"},
     {"cmd":"RT","params":"1~20","desc":"手动右转N步","method":"turnRight","label":"右转","unit":"步"},
-    {"cmd":"HOME","params":null,"desc":"停止四轮并关闭提示","method":"goHome","label":"归位"},
-    {"cmd":"DIST","params":null,"desc":"读取前/左/右三路距离","method":"readDistances","label":"三向测距"},
-    {"cmd":"BEEP","params":null,"desc":"蜂鸣器提示一声","method":"beep","label":"蜂鸣"},
-    {"cmd":"LED ON","params":null,"desc":"点亮状态LED","method":"ledOn","label":"开灯"},
-    {"cmd":"LED OFF","params":null,"desc":"关闭状态LED","method":"ledOff","label":"关灯"}],
-  "commandFormat":"{CMD} {N}","commandValidation":"^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(START|STOP|HOME|DIST|BEEP|LED ON|LED OFF)$",
+    {"cmd":"HOME","params":null,"desc":"停止四轮","method":"goHome","label":"归位"},
+    {"cmd":"DIST","params":null,"desc":"读取前/左/右三路距离","method":"readDistances","label":"三向测距"}],
+  "commandFormat":"{CMD} {N}","commandValidation":"^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(START|STOP|HOME|DIST)$",
   "firmware":"firmware/LH-砺途/robot_cmd.hex",
-  "semanticRules":{"defaultSteps":1,"severalSteps":3,"maxSteps":20,"shortcuts":{"自动避障":["START"],"停止":["STOP"],"前进":["FW {n}"],"后退":["BW {n}"],"左转":["LT {n}"],"右转":["RT {n}"],"测距":["DIST"],"鸣一下":["BEEP"],"开灯":["LED ON"],"关灯":["LED OFF"]}},
-  "promptExtras":"START会让机器人自主读取三路超声波并避障；手动移动命令会退出自动模式。遇到障碍时LED和蜂鸣器是反馈部件，不要声称机器人有摄像头。"
+  "semanticRules":{"defaultSteps":1,"severalSteps":3,"maxSteps":20,"shortcuts":{"自动避障":["START"],"停止":["STOP"],"前进":["FW {n}"],"后退":["BW {n}"],"左转":["LT {n}"],"右转":["RT {n}"],"测距":["DIST"]}},
+  "promptExtras":"START会让机器人自主读取前、左、右三路超声波并避障；手动移动命令会退出自动模式。机器人没有LED和蜂鸣器，不要声称有这些元件或摄像头。"
 }

@@ -1,7 +1,7 @@
 /*
  * RoboMate LH-砺途
  * Four 360-degree wheel servos D2..D5
- * Ultrasonic sensors: front D10/D11, left D6/D7, right D8/D9
+ * Ultrasonic sensors: front D8/D9, left D6/D7, right D10/D11
  * No LED or buzzer is used on this model.
  */
 #include <Servo.h>
@@ -29,10 +29,10 @@ const byte RR_PIN = 5;
 
 const byte LEFT_TRIG_PIN  = 6;
 const byte LEFT_ECHO_PIN  = 7;
-const byte RIGHT_TRIG_PIN = 8;
-const byte RIGHT_ECHO_PIN = 9;
-const byte FRONT_TRIG_PIN = 10;
-const byte FRONT_ECHO_PIN = 11;
+const byte FRONT_TRIG_PIN = 8;
+const byte FRONT_ECHO_PIN = 9;
+const byte RIGHT_TRIG_PIN = 10;
+const byte RIGHT_ECHO_PIN = 11;
 
 // The left and right wheel servos are mirror mounted.
 const byte LF_FWD = 180;

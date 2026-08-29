@@ -4,8 +4,8 @@
   "hardware":{"chip":"ATmega328P","protocol":"stk500v1","baudRate":115200,"communication":"串口115200，每条命令以换行结束","components":[
     {"name":"左前/右前/左后/右后360度舵机","pin":"D2/D3/D4/D5","type":"servo_360"},
     {"name":"左侧超声波","pin":"D6/D7","type":"ultrasonic"},
-    {"name":"右侧超声波","pin":"D8/D9","type":"ultrasonic"},
-    {"name":"前方超声波","pin":"D10/D11","type":"ultrasonic"}]},
+    {"name":"前方超声波","pin":"D8/D9","type":"ultrasonic"},
+    {"name":"右侧超声波","pin":"D10/D11","type":"ultrasonic"}]},
   "commands":[
     {"cmd":"START","params":null,"desc":"启动三路超声波自动避障","method":"startAuto","label":"启动避障"},
     {"cmd":"STOP","params":null,"desc":"停止电机、关闭提示并退出自动模式","method":"emergencyStop","label":"紧急停止"},

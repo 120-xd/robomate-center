@@ -1,152 +1,67 @@
 /*
- * ============================================================
- *  RoboMate LH7 — 横渡机器人
- * ============================================================
- *  协议: 115200 baud, {CMD} [N] + '\n'
- *  空闲时不向串口输出（避免干扰 STK500 烧录）
- * ============================================================
+ * RoboMate LH-横渡
+ * Four mecanum 360-degree servos: D2..D5
+ * Ultrasonic sensor: Trig D8, Echo D9
+ * Protocol: 115200 baud, one command per line
  */
-
 #include <Servo.h>
 
 #define MAX_STEPS 20
-#define ECHO_CMD  0
+#define STOP 90
+#define STEP_MS 400
+#define TURN_MS 300
+#define AUTO_TURN_MS 220
 
-const int PIN_SLF = 2;  // 左前轮
-const int PIN_SRF = 3;  // 右前轮
-const int PIN_SLB = 4;  // 左后轮
-const int PIN_SRB = 5;  // 右后轮
-const int TRIG_PIN = 8;
-const int ECHO_PIN = 9;
+const byte FL_PIN=2,FR_PIN=3,RL_PIN=4,RR_PIN=5,TRIG_PIN=8,ECHO_PIN=9;
+// Calibrate only these values if one wheel runs in the opposite direction.
+const byte FL_FWD=180,FL_REV=0,FR_FWD=0,FR_REV=180;
+const byte RL_FWD=180,RL_REV=0,RR_FWD=0,RR_REV=180;
+Servo fl,fr,rl,rr;
+bool autoMode=true; byte avoidPhase=0; bool avoidRight=true; unsigned long phaseAt=0,lastScan=0;
 
-// 360° 舵机速度: 90=停止, 0/180=正反转（装反了互换即可）
-const int STOP_SPD = 90;
-const int FWD_SPD  = 0;   // 正向全速
-const int BAK_SPD  = 180; // 反向全速
-
-Servo sLF;  // 左前轮
-Servo sRF;  // 右前轮
-Servo sLB;  // 左后轮
-Servo sRB;  // 右后轮
-
-void setup() {
-    Serial.begin(115200);
-    sLF.attach(PIN_SLF);
-    sRF.attach(PIN_SRF);
-    sLB.attach(PIN_SLB);
-    sRB.attach(PIN_SRB);
-    pinMode(TRIG_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT);
-    home();  // 上电归位/停止
+void stopAll(){fl.write(STOP);fr.write(STOP);rl.write(STOP);rr.write(STOP);}
+void setWheels(byte a,byte b,byte c,byte d){fl.write(a);fr.write(b);rl.write(c);rr.write(d);}
+int distanceCm(){digitalWrite(TRIG_PIN,LOW);delayMicroseconds(2);digitalWrite(TRIG_PIN,HIGH);delayMicroseconds(10);digitalWrite(TRIG_PIN,LOW);unsigned long us=pulseIn(ECHO_PIN,HIGH,30000UL);return us?(int)(us*0.0343f/2.0f):999;}
+void moveFor(byte a,byte b,byte c,byte d,unsigned long ms){
+  autoMode=false;setWheels(a,b,c,d);unsigned long started=millis();
+  while(millis()-started<ms){if(Serial.available()){String s=Serial.readStringUntil('\n');s.trim();s.toUpperCase();if(s=="STOP"||s=="HOME"){stopAll();return;}}delay(5);}stopAll();
 }
-
-void loop() {
-    if (Serial.available()) {
-        String line = Serial.readStringUntil('\n');
-        line.trim();
-        if (line.length() > 0) {
-#if ECHO_CMD
-            Serial.print("[ROBO] "); Serial.println(line);
-#endif
-            handleCommand(line);
-        }
-    }
-    else if (autoCruise) {
-        runCruise();
-    }
+void runAuto(){
+  unsigned long now=millis();
+  if(avoidPhase==0){
+    setWheels(FL_FWD,FR_FWD,RL_FWD,RR_FWD);
+    if(now-lastScan>=200){lastScan=now;if(distanceCm()<20){stopAll();avoidPhase=1;phaseAt=now;avoidRight=!avoidRight;}}
+  }else if(avoidPhase==1){
+    // Give the chassis time to stop before changing direction.
+    stopAll();
+    if(now-phaseAt>=500){avoidPhase=2;phaseAt=now;}
+  }else if(avoidPhase==2){
+    // Move sideways far enough to clear a wall or a corner.
+    if(avoidRight)setWheels(FL_FWD,FR_REV,RL_REV,RR_FWD);
+    else setWheels(FL_REV,FR_FWD,RL_FWD,RR_REV);
+    if(now-phaseAt>=900){avoidPhase=3;phaseAt=now;}
+  }else if(avoidPhase==3){
+    stopAll();
+    if(now-phaseAt>=300){avoidPhase=4;phaseAt=now;}
+  }else{
+    // Turn a visible amount so the next forward segment is not parallel to the wall.
+    setWheels(FL_FWD,FR_REV,RL_FWD,RR_REV);
+    if(now-phaseAt>=AUTO_TURN_MS){avoidPhase=0;lastScan=now;stopAll();}
+  }
 }
-
-
-void handleCommand(String line) {
-    line.toUpperCase();
-    String cmd = line;
-    int steps = 1;
-    int sp = line.indexOf(' ');
-    if (sp > 0) {
-        cmd = line.substring(0, sp);
-        steps = line.substring(sp + 1).toInt();
-    }
-    if (steps < 1) steps = 1;
-    if (steps > MAX_STEPS) steps = MAX_STEPS;
-
-    if      (cmd == "FW")   forward(steps);
-    else if (cmd == "BW")   backward(steps);
-    else if (cmd == "LT")   turnLeft(steps);
-    else if (cmd == "RT")   turnRight(steps);
-    else if (cmd == "HOME") home();
-    else if (cmd == "STOP") home();
-    else if (cmd == "SL")   slideLeft(steps);
-    else if (cmd == "SR")   slideRight(steps);
-    else if (cmd == "ROT")  rotate(steps);
+void runCommand(String line){
+  line.trim();line.toUpperCase();if(!line.length())return;String op=line;int n=1,sp=line.indexOf(' ');
+  if(sp>0){op=line.substring(0,sp);n=line.substring(sp+1).toInt();}n=constrain(n,1,MAX_STEPS);
+  if(op=="START"){autoMode=true;avoidPhase=0;lastScan=0;}
+  else if(op=="FW")moveFor(FL_FWD,FR_FWD,RL_FWD,RR_FWD,(unsigned long)n*STEP_MS);
+  else if(op=="BW")moveFor(FL_REV,FR_REV,RL_REV,RR_REV,(unsigned long)n*STEP_MS);
+  else if(op=="SL")moveFor(FL_REV,FR_FWD,RL_FWD,RR_REV,(unsigned long)n*STEP_MS);
+  else if(op=="SR")moveFor(FL_FWD,FR_REV,RL_REV,RR_FWD,(unsigned long)n*STEP_MS);
+  else if(op=="LT")moveFor(FL_REV,FR_FWD,RL_REV,RR_FWD,(unsigned long)n*TURN_MS);
+  else if(op=="RT")moveFor(FL_FWD,FR_REV,RL_FWD,RR_REV,(unsigned long)n*TURN_MS);
+  else if(op=="ROT")moveFor(FL_REV,FR_FWD,RL_REV,RR_FWD,(unsigned long)n*TURN_MS);
+  else if(op=="HOME"||op=="STOP"){autoMode=false;avoidPhase=0;stopAll();}
+  else if(op=="DIST"){Serial.print("DIST ");Serial.println(distanceCm());}
 }
-
-// 麦克纳姆轮: 4轮差速实现全向移动
-void forward(int n)   { for(int i=0;i<n;i++){ sLF.write(FWD_SPD); sRF.write(FWD_SPD); sLB.write(FWD_SPD); sRB.write(FWD_SPD); delay(400); home(); delay(100); } }
-void backward(int n)  { for(int i=0;i<n;i++){ sLF.write(BAK_SPD); sRF.write(BAK_SPD); sLB.write(BAK_SPD); sRB.write(BAK_SPD); delay(400); home(); delay(100); } }
-void turnLeft(int n)  { for(int i=0;i<n;i++){ sLF.write(BAK_SPD); sRF.write(FWD_SPD); sLB.write(BAK_SPD); sRB.write(FWD_SPD); delay(300); home(); delay(100); } }
-void turnRight(int n) { for(int i=0;i<n;i++){ sLF.write(FWD_SPD); sRF.write(BAK_SPD); sLB.write(FWD_SPD); sRB.write(BAK_SPD); delay(300); home(); delay(100); } }
-void slideLeft(int n) { for(int i=0;i<n;i++){ sLF.write(BAK_SPD); sRF.write(FWD_SPD); sLB.write(FWD_SPD); sRB.write(BAK_SPD); delay(400); home(); delay(100); } }
-void slideRight(int n){ for(int i=0;i<n;i++){ sLF.write(FWD_SPD); sRF.write(BAK_SPD); sLB.write(BAK_SPD); sRB.write(FWD_SPD); delay(400); home(); delay(100); } }
-void rotate(int n)    { for(int i=0;i<n;i++){ sLF.write(FWD_SPD); sRF.write(BAK_SPD); sLB.write(FWD_SPD); sRB.write(BAK_SPD); delay(300); home(); delay(100); } }
-void home()           { sLF.write(STOP_SPD); sRF.write(STOP_SPD); sLB.write(STOP_SPD); sRB.write(STOP_SPD); }
-
-int getDistance() {
-    digitalWrite(TRIG_PIN, LOW);  delayMicroseconds(2);
-    digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
-    digitalWrite(TRIG_PIN, LOW);
-    long dur = pulseIn(ECHO_PIN, HIGH, 30000);
-    if (dur == 0) return 999;
-    return (int)(dur * 0.034 / 2);
-}
-
-
-// ============================================================
-//  自动巡航（非阻塞状态机）
-//   默认持续前进，每 200ms 扫描前方障碍
-//   遇障时：停 → 后退 → 左转 → 恢复前进
-// ============================================================
-bool autoCruise = true;   // 上电默认启动巡航
-bool inAvoid    = false;  // 正在执行避障动作
-unsigned long avoidStart = 0;
-unsigned long lastScan   = 0;
-
-void runCruise() {
-    unsigned long now = millis();
-
-    if (!inAvoid) {
-        // ---------- 正常前进 ----------
-        sLF.write(FWD_SPD); sRF.write(FWD_SPD); sLB.write(FWD_SPD); sRB.write(FWD_SPD);
-
-        // 每 200ms 扫描一次障碍
-        if (now - lastScan > 200) {
-            lastScan = now;
-            if (getDistance() < 20) {
-                inAvoid = true;
-                avoidStart = now;
-                sLF.write(STOP_SPD); sRF.write(STOP_SPD); sLB.write(STOP_SPD); sRB.write(STOP_SPD);
-            }
-        }
-    }
-    else {
-        // ---------- 避障序列 ----------
-        unsigned long t = now - avoidStart;
-
-        if (t < 150) {
-            sLF.write(STOP_SPD); sRF.write(STOP_SPD); sLB.write(STOP_SPD); sRB.write(STOP_SPD);
-        }
-        else if (t < 550) {
-            sLF.write(BAK_SPD); sRF.write(BAK_SPD); sLB.write(BAK_SPD); sRB.write(BAK_SPD);
-        }
-        else if (t < 700) {
-            sLF.write(STOP_SPD); sRF.write(STOP_SPD); sLB.write(STOP_SPD); sRB.write(STOP_SPD);
-        }
-        else if (t < 1000) {
-            sLF.write(BAK_SPD); sRF.write(FWD_SPD); sLB.write(BAK_SPD); sRB.write(FWD_SPD);
-        }
-        else {
-            inAvoid = false;
-            sLF.write(STOP_SPD); sRF.write(STOP_SPD); sLB.write(STOP_SPD); sRB.write(STOP_SPD);
-            lastScan = now;
-        }
-    }
-}
+void setup(){Serial.begin(115200);fl.attach(FL_PIN);fr.attach(FR_PIN);rl.attach(RL_PIN);rr.attach(RR_PIN);pinMode(TRIG_PIN,OUTPUT);pinMode(ECHO_PIN,INPUT);stopAll();}
+void loop(){if(Serial.available())runCommand(Serial.readStringUntil('\n'));if(autoMode)runAuto();}

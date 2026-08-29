@@ -196,6 +196,16 @@ const App = (() => {
     let dirTimeout = null;
     function showDirection(cmd) {
         els.directionIndicator.style.opacity = '1';
+        const op = cmd.trim().split(/\s+/)[0];
+        const definition = state.activeModel?.commands?.find(c => c.cmd === op);
+        const direction = state.activeModel?.directionMap?.[op];
+        els.directionText.innerText = direction?.label || definition?.label || op;
+        if (direction?.angle !== undefined) els.arrowIcon.style.transform = `rotate(${direction.angle}deg)`;
+        else if (op === 'FW') els.arrowIcon.style.transform = 'rotate(0deg)';
+        else if (op === 'BW') els.arrowIcon.style.transform = 'rotate(180deg)';
+        else if (op === 'LT') els.arrowIcon.style.transform = 'rotate(-90deg)';
+        else if (op === 'RT') els.arrowIcon.style.transform = 'rotate(90deg)';
+        /*
         if (cmd.startsWith('FW')) {
             els.directionText.innerText = '前进';
             els.arrowIcon.style.transform = 'rotate(0deg)';
@@ -213,6 +223,7 @@ const App = (() => {
         } else if (cmd === 'HOME') {
             els.directionText.innerText = '归中';
         }
+        */
         els.robotStatusText.innerText = '机器人运动中...';
         els.mainTip.innerText = '程序执行中...';
 
@@ -453,29 +464,38 @@ const App = (() => {
 
     // ========== Raw Command Send (single direct command) ==========
     async function sendRawCommand(cmd) {
-        if (!cmd) return;
+        if (!cmd) return false;
         cmd = cmd.toUpperCase().trim();
-        if (!cmd) return;
+        if (!cmd) return false;
 
         if (state.ready && SerialCore.isConnected()) {
             try {
                 await SerialCore.sendCommand(cmd);
+                writeToTerminal(`SERIAL TX: ${cmd}`, true);
                 showDirection(cmd);
                 apiPost('/commands', { command: cmd, source: 'manual' });
+                return true;
             } catch (e) {
                 addChatMessage('system', '发送失败: ' + e.message);
+                writeToTerminal(`SERIAL TX FAILED: ${cmd} - ${e.message}`);
+                return false;
             }
         } else if (state.connected && !state.ready) {
             addChatMessage('system', '请先烧录固件再发送指令');
         } else {
             addChatMessage('system', '请先连接 USB 并烧录固件');
         }
+        return false;
     }
 
     // Check if text looks like a raw command (e.g. "FW 3", "HOME", "MW")
     function isRawCommand(text) {
-        return /^(FW|BW|LT|RT|MW|HOME|STOP|START|FLAP|SWING|WAVE)(\s+\d+)?$/i.test(text.trim())
-            || /^TXT\s+.+$|^CLS$/i.test(text.trim());
+        const value = text.trim().toUpperCase();
+        const pattern = state.activeModel?.commandValidation;
+        if (pattern) {
+            try { return new RegExp(pattern).test(value); } catch (e) { /* safe fallback */ }
+        }
+        return /^(?:[A-Z]+)(?:\s+\d+|\s+[A-Z ]+)?$/i.test(value);
     }
 
     // ========== Smart Text Command (text input → maybe AI → execute) ==========
@@ -517,7 +537,11 @@ const App = (() => {
                 els.mainTip.innerText = 'AI 正在编写代码...';
                 await typewriteCode(code);
                 await showChatProgress(1800);
-                await sendRawCommand(cmd);
+                const sent = await sendRawCommand(cmd);
+                if (!sent) {
+                    els.mainTip.innerText = '串口发送失败';
+                    return;
+                }
                 els.mainTip.innerText = '程序执行完毕';
             } else {
                 addChatMessage('ai', '抱歉，我没太明白。试试说「前进三步」或者「跳个舞」吧～');
@@ -541,11 +565,19 @@ const App = (() => {
             await showChatProgress(1800);
 
             // Execute commands silently (direction indicator still updates via sendRawCommand)
+            let allSent = true;
             for (const item of result.commands) {
-                await sendRawCommand(item.cmd);
+                if (!await sendRawCommand(item.cmd)) {
+                    allSent = false;
+                    break;
+                }
                 await new Promise(r => setTimeout(r, 300));
             }
 
+            if (!allSent) {
+                els.mainTip.innerText = '串口发送失败';
+                return;
+            }
             apiPost('/commands', { command: result.commands.map(c => c.cmd).join(','), source, rawVoiceText: text });
             els.mainTip.innerText = '程序执行完毕';
         } else if (result.explanation) {
@@ -563,6 +595,33 @@ const App = (() => {
 
     // Minimal frontend fallback — only used when backend is unreachable
     function localParseVoice(text) {
+        const plain = text.trim().replace(/[，,。；;！!？?]/g, '');
+        const number = (plain.match(/(\d+)/) || [])[1] || (state.activeModel?.semanticRules?.defaultSteps || 1);
+        // Keep the offline fallback useful even when /models/active is unavailable.
+        if (/自动|自主/.test(plain) && /爬行|避障/.test(plain)) return 'START';
+        if (/测距|距离|多远/.test(plain)) return 'DIST';
+        if (/停止|停下/.test(plain)) return 'STOP';
+        if (/归位|回到初始/.test(plain)) return 'HOME';
+        if (/后退|向后|往后|倒车/.test(plain)) return `BW ${number}`;
+        if (/前进|向前|往前|直走/.test(plain)) return `FW ${number}`;
+        if (/左移|向左横|往左横/.test(plain)) return `SL ${number}`;
+        if (/右移|向右横|往右横/.test(plain)) return `SR ${number}`;
+        if (/左转|向左转/.test(plain)) return `LT ${number}`;
+        if (/右转|向右转/.test(plain)) return `RT ${number}`;
+        const shortcuts = state.activeModel?.semanticRules?.shortcuts || {};
+        const parts = text.split(/\s*(?:然后|接着|再|之后|[，,。；;、])\s*/).map(x => x.trim()).filter(Boolean);
+        const localCommands = [];
+        for (const part of parts) {
+            for (const [phrase, commands] of Object.entries(shortcuts)) {
+                if (part.includes(phrase)) {
+                    const match = part.match(/(\d+)/);
+                    const n = match ? match[1] : (state.activeModel?.semanticRules?.defaultSteps || 1);
+                    commands.forEach(command => localCommands.push(command.replace('{n}', n)));
+                    break;
+                }
+            }
+        }
+        if (localCommands.length) return localCommands[0];
         const t = text.replace(/[，。！？、\s]/g, '').toLowerCase();
         const steps = (t.match(/(\d+)/) || [])[1] || '1';
 
@@ -589,6 +648,11 @@ const App = (() => {
             const parts = item.cmd.split(/\s+/);
             const op = parts[0];
             const val = parts[1] || '1';
+            const definition = state.activeModel?.commands?.find(c => item.cmd === c.cmd || item.cmd.startsWith(c.cmd + ' '));
+            if (definition?.method) {
+                lines.push(`robot.${definition.method}(${definition.unit && parts[1] ? val : ''}); // ${definition.label || op}${definition.unit && parts[1] ? val + definition.unit : ''}`);
+                continue;
+            }
 
             switch (op) {
                 case 'FW':

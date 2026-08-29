@@ -11,22 +11,32 @@
     "components": [
       {
         "name": "左腿",
-        "pin": "D10",
-        "type": "servo"
-      },
-      {
-        "name": "右腿",
-        "pin": "D11",
-        "type": "servo"
-      },
-      {
-        "name": "左脚",
         "pin": "D2",
         "type": "servo"
       },
       {
-        "name": "右脚",
+        "name": "右腿",
         "pin": "D3",
+        "type": "servo"
+      },
+      {
+        "name": "左脚",
+        "pin": "D4",
+        "type": "servo"
+      },
+      {
+        "name": "右脚",
+        "pin": "D5",
+        "type": "servo"
+      },
+      {
+        "name": "左手",
+        "pin": "D6",
+        "type": "servo"
+      },
+      {
+        "name": "右手",
+        "pin": "D7",
         "type": "servo"
       },
       {

@@ -1,144 +1,20 @@
 {
-  "id": "LH-赤原",
-  "name": "RoboMate-LH-赤原",
-  "type": "vehicle",
-  "description": "六舵机六轮摇臂越野车，可翻越障碍、爬坡",
-  "hardware": {
-    "chip": "ATmega328P",
-    "protocol": "stk500v1",
-    "baudRate": 115200,
-    "communication": "串口 115200 baud，每条指令以换行符结束",
-    "components": [
-      {
-        "name": "左前轮",
-        "pin": "D2",
-        "type": "servo_360"
-      },
-      {
-        "name": "右前轮",
-        "pin": "D3",
-        "type": "servo_360"
-      },
-      {
-        "name": "左中轮",
-        "pin": "D4",
-        "type": "servo_360"
-      },
-      {
-        "name": "右中轮",
-        "pin": "D5",
-        "type": "servo_360"
-      },
-      {
-        "name": "左后轮",
-        "pin": "D6",
-        "type": "servo_360"
-      },
-      {
-        "name": "右后轮",
-        "pin": "D7",
-        "type": "servo_360"
-      },
-      {
-        "name": "超声波传感器",
-        "pin": "D8/D9",
-        "type": "ultrasonic"
-      }
-    ]
-  },
-  "commands": [
-    {
-      "cmd": "FW",
-      "params": "1~20",
-      "desc": "前进 N 步",
-      "method": "forward",
-      "label": "前进",
-      "unit": "步"
-    },
-    {
-      "cmd": "BW",
-      "params": "1~20",
-      "desc": "后退 N 步",
-      "method": "backward",
-      "label": "后退",
-      "unit": "步"
-    },
-    {
-      "cmd": "LT",
-      "params": "1~20",
-      "desc": "左转 N 步",
-      "method": "turnLeft",
-      "label": "左转",
-      "unit": "步"
-    },
-    {
-      "cmd": "RT",
-      "params": "1~20",
-      "desc": "右转 N 步",
-      "method": "turnRight",
-      "label": "右转",
-      "unit": "步"
-    },
-    {
-      "cmd": "HOME",
-      "params": null,
-      "desc": "归中/停止",
-      "method": "goHome",
-      "label": "归中"
-    },
-    {
-      "cmd": "STOP",
-      "params": null,
-      "desc": "停止",
-      "method": "goHome",
-      "label": "停止"
-    }
-  ],
-  "commandFormat": "{CMD} {N}",
-  "commandValidation": "^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(HOME|STOP)$",
-  "firmware": "firmware/LH-赤原/robot_cmd.hex",
-  "semanticRules": {
-    "defaultSteps": 1,
-    "severalSteps": 3,
-    "maxSteps": 20,
-    "shortcuts": {
-      "前进": [
-        "FW {n}"
-      ],
-      "后退": [
-        "BW {n}"
-      ],
-      "左转": [
-        "LT {n}"
-      ],
-      "右转": [
-        "RT {n}"
-      ],
-      "转一圈": [
-        "RT 4"
-      ],
-      "转个圈": [
-        "RT 4"
-      ],
-      "旋转": [
-        "RT 4"
-      ],
-      "停下": [
-        "HOME"
-      ],
-      "站住": [
-        "HOME"
-      ],
-      "归位": [
-        "HOME"
-      ],
-      "回去": [
-        "HOME"
-      ],
-      "停": [
-        "HOME"
-      ]
-    }
-  },
-  "promptExtras": "LH11 是赤原六轮越野机器人，采用摇臂悬挂设计，6 个 360° 舵机驱动 6 个轮子，像火星车一样能翻越障碍物和爬坡。"
+  "id":"LH-赤原","name":"RoboMate-LH-赤原","type":"vehicle",
+  "description":"六轮摇臂越野车，六个360度舵机分别驱动左右三组车轮，配有前方超声波。",
+  "hardware":{"chip":"ATmega328P","protocol":"stk500v1","baudRate":115200,"communication":"串口115200，每条命令以换行结束","components":[
+    {"name":"左前/右前360度舵机","pin":"D2/D3","type":"servo_360"},{"name":"左中/右中360度舵机","pin":"D4/D5","type":"servo_360"},{"name":"左后/右后360度舵机","pin":"D6/D7","type":"servo_360"},{"name":"超声波传感器","pin":"D8/D9","type":"ultrasonic"}]},
+  "commands":[
+    {"cmd":"START","params":null,"desc":"启动前方超声波自动避障巡航","method":"startAuto","label":"启动巡航"},
+    {"cmd":"STOP","params":null,"desc":"停止六个车轮并退出自动模式","method":"emergencyStop","label":"停止"},
+    {"cmd":"FW","params":"1~20","desc":"六轮前进N步","method":"forward","label":"前进","unit":"步"},
+    {"cmd":"BW","params":"1~20","desc":"六轮后退N步","method":"backward","label":"后退","unit":"步"},
+    {"cmd":"LT","params":"1~20","desc":"六轮左转N步","method":"turnLeft","label":"左转","unit":"步"},
+    {"cmd":"RT","params":"1~20","desc":"六轮右转N步","method":"turnRight","label":"右转","unit":"步"},
+    {"cmd":"HOME","params":null,"desc":"六轮停止","method":"goHome","label":"归位"},
+    {"cmd":"DIST","params":null,"desc":"读取前方超声波距离（厘米）","method":"readDistance","label":"测距"},
+    {"cmd":"STATUS","params":null,"desc":"读取固件版本和当前自动避障阶段","method":"status","label":"状态"}],
+  "commandFormat":"{CMD} {N}","commandValidation":"^(FW|BW|LT|RT)(\\s+\\d{1,2})?$|^(START|STOP|HOME|DIST|STATUS)$",
+  "firmware":"firmware/LH-赤原/robot_cmd.hex",
+  "semanticRules":{"defaultSteps":1,"severalSteps":3,"maxSteps":20,"shortcuts":{"自动巡航":["START"],"停止":["STOP"],"前进":["FW {n}"],"后退":["BW {n}"],"左转":["LT {n}"],"右转":["RT {n}"],"测距":["DIST"],"状态":["STATUS"],"归位":["HOME"]}},
+  "promptExtras":"这是六轮摇臂越野车，不是六足机器人。START使用前方超声波自动避障；手动移动会退出自动模式。"
 }

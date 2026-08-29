@@ -111,6 +111,9 @@ class ProfileManager {
         const defaultSteps = profile.semanticRules.defaultSteps || 1;
         const severalSteps = profile.semanticRules.severalSteps || 3;
         const maxSteps = profile.semanticRules.maxSteps || 20;
+        const codeRules = profile.commands.map(c =>
+            `- ${c.cmd}${c.method ? ` → robot.${c.method}(${c.params ? '参数' : ''})` : ' → robot.execute(原始串口命令)'}`
+        ).join('\n');
 
         return `你是"小${profile.id.toUpperCase()}"，一个专门帮小学生控制${typeLabel}的 AI 助手。你的性格热情、耐心，像大哥哥一样。
 
@@ -157,7 +160,7 @@ code 字段要求：
 - 第一行用 // 写上这段代码的功能（中文）
 - 每行一条 robot.xxx() 调用，行尾用 // 注释说明中文含义
 - 不需要 #include、setup()、loop() 等框架代码，只写核心控制语句
-- 对应关系：FW → robot.forward, BW → robot.backward, LT → robot.turnLeft, RT → robot.turnRight, MW → robot.moonwalk, FLAP → robot.flapArms, SWING → robot.swing, WAVE → robot.wave, HOME → robot.goHome, TXT → robot.display, CLS → robot.clearScreen
+${codeRules}
 - 代码要通俗易懂，让小学生也能看懂「AI 写的代码」
 
 如果是指令+闲聊混合：先处理指令，explanation 里既回应闲聊又说明指令
@@ -176,23 +179,52 @@ code 字段要求：
     fallbackParse(profile, text) {
         if (!profile) return { commands: [], explanation: '' };
 
-        const shortcuts = profile.semanticRules.shortcuts || {};
+        const shortcuts = Object.entries(profile.semanticRules.shortcuts || {})
+            // Prefer a specific phrase (e.g. "自动爬行") over a shorter one ("爬行").
+            .sort((a, b) => b[0].length - a[0].length);
         const commands = [];
 
+        const chineseNumber = (value) => {
+            const digits = { '\u96f6': 0, '\u4e00': 1, '\u4e8c': 2, '\u4e24': 2, '\u4e09': 3, '\u56db': 4, '\u4e94': 5, '\u516d': 6, '\u4e03': 7, '\u516b': 8, '\u4e5d': 9 };
+            if (/^\d+$/.test(value)) return value;
+            if (value === '\u5341') return '10';
+            const ten = value.indexOf('\u5341');
+            if (ten >= 0) {
+                const left = ten ? (digits[value[0]] || 1) : 1;
+                const right = ten < value.length - 1 ? (digits[value[ten + 1]] || 0) : 0;
+                return String(left * 10 + right);
+            }
+            return digits[value] == null ? '1' : String(digits[value]);
+        };
+
+        const extractSteps = (value) => {
+            const match = value.match(/(\d+|[\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]{1,3})/);
+            return match ? chineseNumber(match[1]) : '1';
+        };
+
         // Split by connectors
-        const parts = text.split(/[然后接着再之后，,]\s*/);
+        const parts = text.split(/\s*(?:然后|接着|再|之后|，|,)\s*/);
 
         for (const part of parts) {
             const pt = part.replace(/[。！？、\s]/g, '').toLowerCase();
             if (!pt) continue;
 
+            // These high-priority intents must win over the generic "爬行" shortcut.
+            if (/自\u52a8|自\u4e3b/.test(pt) && /爬\u884c|避\u969c/.test(pt)) {
+                commands.push({ cmd: 'START' });
+                continue;
+            }
+            if (/测\u8ddd|距\u79bb/.test(pt)) {
+                commands.push({ cmd: 'DIST' });
+                continue;
+            }
+
             let matched = false;
-            for (const [phrase, cmds] of Object.entries(shortcuts)) {
+            for (const [phrase, cmds] of shortcuts) {
                 if (pt.includes(phrase)) {
                     for (const cmd of cmds) {
                         // Replace {n} placeholder with extracted number or default 1
-                        const numMatch = pt.match(/(\d+)/);
-                        const n = numMatch ? numMatch[1] : '1';
+                        const n = extractSteps(pt);
                         commands.push({ cmd: cmd.replace('{n}', n) });
                     }
                     matched = true;

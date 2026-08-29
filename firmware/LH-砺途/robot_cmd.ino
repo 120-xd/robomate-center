@@ -1,214 +1,29 @@
 /*
- * ============================================================
- *  RoboMate LH2 — 砺途机器人（四舵机六轮/四轮避障越野车）
- * ============================================================
- *
- * 【平台契约】
- *   - 主控: ATmega328P, Bootloader: STK500v1
- *   - 运行串口: 115200 baud, 8N1
- *   - 指令协议: {大写指令} [参数] + '\n'
- *   - 空闲时【不得】向串口持续输出数据
- *
- * 【硬件】
- *   4×360°舵机: 左前轮D2 右前轮D3 左后轮D4 右后轮D5
- *   3×超声波:   前D8/D9  左D10/D11  右D6/D7
- *   LED 指示灯: D13
- *   蜂鸣器:     D12
- *
- * 【指令集】
- *   START  - 启动自主避障模式
- *   STOP   - 停止/紧急刹车
- *   FW N   - 手动前进 N 步
- *   BW N   - 手动后退 N 步
- *   LT N   - 手动左转 N 步
- *   RT N   - 手动右转 N 步
- *   HOME   - 归中/停止
- * ============================================================
+ * RoboMate LH-砺途
+ * Four 360-degree wheel servos D2..D5
+ * Ultrasonic sensors: front D10/D11, left D6/D7, right D8/D9
+ * LED D13, buzzer D12
  */
-
 #include <Servo.h>
-
 #define MAX_STEPS 20
-#define ECHO_CMD  0
-
-// ---------- 引脚 ----------
-const int PIN_LF = 2;   // 左前轮
-const int PIN_RF = 3;   // 右前轮
-const int PIN_LB = 4;   // 左后轮
-const int PIN_RB = 5;   // 右后轮
-
-const int TRIG_F = 8;   // 前方超声波 Trig
-const int ECHO_F = 9;   // 前方超声波 Echo
-const int TRIG_L = 10;  // 左侧超声波 Trig
-const int ECHO_L = 11;  // 左侧超声波 Echo
-const int TRIG_R = 6;   // 右侧超声波 Trig
-const int ECHO_R = 7;   // 右侧超声波 Echo
-
-const int LED_PIN  = 13;
-const int BUZZ_PIN = 12;
-
-// ---------- 360° 舵机速度 ----------
-const int STOP_SPD = 90;
-const int FWD_SPD  = 0;
-const int BAK_SPD  = 180;
-
-Servo sLF, sRF, sLB, sRB;
-
-// ---------- 自主模式状态机 ----------
-enum Mode { MODE_MANUAL, MODE_AUTO };
-Mode currentMode = MODE_MANUAL;
-
-// ============================================================
-//  初始化
-// ============================================================
-void setup() {
-    Serial.begin(115200);
-
-    sLF.attach(PIN_LF);
-    sRF.attach(PIN_RF);
-    sLB.attach(PIN_LB);
-    sRB.attach(PIN_RB);
-
-    pinMode(TRIG_F, OUTPUT); pinMode(ECHO_F, INPUT);
-    pinMode(TRIG_L, OUTPUT); pinMode(ECHO_L, INPUT);
-    pinMode(TRIG_R, OUTPUT); pinMode(ECHO_R, INPUT);
-
-    pinMode(LED_PIN, OUTPUT);
-    pinMode(BUZZ_PIN, OUTPUT);
-
-    home();
-}
-
-// ============================================================
-//  主循环
-// ============================================================
-void loop() {
-    // 1) 串口指令优先
-    if (Serial.available()) {
-        String line = Serial.readStringUntil('\n');
-        line.trim();
-        if (line.length() > 0) {
-#if ECHO_CMD
-            Serial.print("[LH2] "); Serial.println(line);
-#endif
-            handleCommand(line);
-        }
-    }
-
-    // 2) 自主避障模式
-    if (currentMode == MODE_AUTO) {
-        autoAvoid();
-    }
-}
-
-// ============================================================
-//  指令解析
-// ============================================================
-void handleCommand(String line) {
-    line.toUpperCase();
-    String cmd = line;
-    int steps = 1;
-    int sp = line.indexOf(' ');
-    if (sp > 0) {
-        cmd = line.substring(0, sp);
-        steps = line.substring(sp + 1).toInt();
-    }
-    if (steps < 1) steps = 1;
-    if (steps > MAX_STEPS) steps = MAX_STEPS;
-
-    if      (cmd == "START") { currentMode = MODE_AUTO;  digitalWrite(LED_PIN, HIGH); }
-    else if (cmd == "STOP")  { currentMode = MODE_MANUAL; home(); digitalWrite(LED_PIN, LOW); }
-    else if (cmd == "FW")    { currentMode = MODE_MANUAL; forward(steps); }
-    else if (cmd == "BW")    { currentMode = MODE_MANUAL; backward(steps); }
-    else if (cmd == "LT")    { currentMode = MODE_MANUAL; turnLeft(steps); }
-    else if (cmd == "RT")    { currentMode = MODE_MANUAL; turnRight(steps); }
-    else if (cmd == "HOME")  { currentMode = MODE_MANUAL; home(); }
-}
-
-// ============================================================
-//  基础动作
-// ============================================================
-void forward(int n)  {
-    for(int i=0;i<n;i++){
-        sLF.write(FWD_SPD); sRF.write(FWD_SPD); sLB.write(FWD_SPD); sRB.write(FWD_SPD);
-        delay(400); home(); delay(100);
-    }
-}
-void backward(int n) {
-    for(int i=0;i<n;i++){
-        sLF.write(BAK_SPD); sRF.write(BAK_SPD); sLB.write(BAK_SPD); sRB.write(BAK_SPD);
-        delay(400); home(); delay(100);
-    }
-}
-void turnLeft(int n) {
-    for(int i=0;i<n;i++){
-        sLF.write(BAK_SPD); sRF.write(FWD_SPD); sLB.write(BAK_SPD); sRB.write(FWD_SPD);
-        delay(300); home(); delay(100);
-    }
-}
-void turnRight(int n){
-    for(int i=0;i<n;i++){
-        sLF.write(FWD_SPD); sRF.write(BAK_SPD); sLB.write(FWD_SPD); sRB.write(BAK_SPD);
-        delay(300); home(); delay(100);
-    }
-}
-void home() {
-    sLF.write(STOP_SPD); sRF.write(STOP_SPD); sLB.write(STOP_SPD); sRB.write(STOP_SPD);
-}
-
-void beep(int freq, int dur) {
-    tone(BUZZ_PIN, freq, dur);
-}
-
-// ============================================================
-//  超声波测距
-// ============================================================
-int getDist(int trig, int echo) {
-    digitalWrite(trig, LOW);  delayMicroseconds(2);
-    digitalWrite(trig, HIGH); delayMicroseconds(10);
-    digitalWrite(trig, LOW);
-    long dur = pulseIn(echo, HIGH, 30000);
-    if (dur == 0) return 999;
-    return (int)(dur * 0.034 / 2);
-}
-
-// ============================================================
-//  自主避障模式（非阻塞状态机）
-// ============================================================
-unsigned long autoTimer = 0;
-int autoState = 0;   // 0=前进 1=后退 2=左转 3=右转
-
-void autoAvoid() {
-    if (millis() - autoTimer < 300) return;  // 最小动作间隔
-    autoTimer = millis();
-
-    int df = getDist(TRIG_F, ECHO_F);  // 前方
-    int dl = getDist(TRIG_L, ECHO_L);  // 左侧
-    int dr = getDist(TRIG_R, ECHO_R);  // 右侧
-
-    // LED 闪烁表示自主模式运行中
-    digitalWrite(LED_PIN, (millis() / 250) % 2);
-
-    if (df < 15) {
-        // 前方遇障
-        beep(1500, 100);
-        if (dl > dr && dl > 15) {
-            // 左边更空，左转
-            turnLeft(1);
-        } else if (dr > dl && dr > 15) {
-            // 右边更空，右转
-            turnRight(1);
-        } else {
-            // 两边都没空间，后退
-            backward(1);
-            beep(1000, 200);
-        }
-    } else if (df < 30) {
-        // 前方较远有障碍，减速前进并蜂鸣提示
-        forward(1);
-        beep(800, 50);
-    } else {
-        // 前方畅通，前进
-        forward(1);
-    }
-}
+#define STOP 90
+#define STEP_MS 400
+#define TURN_MS 300
+#define FRONT_STOP 20
+#define SIDE_LIMIT 15
+const byte LF_PIN=2,RF_PIN=3,LR_PIN=4,RR_PIN=5,LT=6,LE=7,RT=8,RE=9,FT=10,FE=11,BUZZER=12,LED=13;
+const byte LF_FWD=180,LF_REV=0,RF_FWD=0,RF_REV=180,LR_FWD=180,LR_REV=0,RR_FWD=0,RR_REV=180;
+Servo leftFront,rightFront,leftRear,rightRear;bool autoMode=true;byte phase=0;unsigned long phaseAt=0,lastScan=0;
+void stopAll(){leftFront.write(STOP);rightFront.write(STOP);leftRear.write(STOP);rightRear.write(STOP);}
+void drive(byte a,byte b,byte c,byte d){leftFront.write(a);rightFront.write(b);leftRear.write(c);rightRear.write(d);}
+int readDistance(byte trig,byte echo){digitalWrite(trig,LOW);delayMicroseconds(2);digitalWrite(trig,HIGH);delayMicroseconds(10);digitalWrite(trig,LOW);unsigned long us=pulseIn(echo,HIGH,30000UL);return us?(int)(us*0.0343f/2.0f):999;}
+void beep(){tone(BUZZER,1200,120);}
+void moveFor(byte a,byte b,byte c,byte d,unsigned long ms){autoMode=false;digitalWrite(LED,LOW);drive(a,b,c,d);unsigned long t=millis();while(millis()-t<ms){if(Serial.available()){String s=Serial.readStringUntil('\n');s.trim();s.toUpperCase();if(s=="STOP"||s=="HOME"){stopAll();return;}}delay(5);}stopAll();}
+void forward(int n){moveFor(LF_FWD,RF_FWD,LR_FWD,RR_FWD,(unsigned long)n*STEP_MS);}
+void backward(int n){moveFor(LF_REV,RF_REV,LR_REV,RR_REV,(unsigned long)n*STEP_MS);}
+void turnLeft(int n){moveFor(LF_REV,RF_FWD,LR_REV,RR_FWD,(unsigned long)n*TURN_MS);}
+void turnRight(int n){moveFor(LF_FWD,RF_REV,LR_FWD,RR_REV,(unsigned long)n*TURN_MS);}
+void runAuto(){unsigned long now=millis();if(phase==0){digitalWrite(LED,LOW);drive(LF_FWD,RF_FWD,LR_FWD,RR_FWD);if(now-lastScan>=150){lastScan=now;int f=readDistance(FT,FE),l=readDistance(LT,LE),r=readDistance(RT,RE);if(f<FRONT_STOP){stopAll();beep();phase=1;phaseAt=now;}else if(l<SIDE_LIMIT||r<SIDE_LIMIT)digitalWrite(LED,HIGH);}}else if(phase==1){drive(LF_REV,RF_REV,LR_REV,RR_REV);if(now-phaseAt>=450){phase=2;phaseAt=now;}}else{drive(LF_FWD,RF_REV,LR_FWD,RR_REV);if(now-phaseAt>=450){phase=0;lastScan=now;stopAll();}}}
+void runCommand(String line){line.trim();line.toUpperCase();if(!line.length())return;if(line=="LED ON"){digitalWrite(LED,HIGH);return;}if(line=="LED OFF"){digitalWrite(LED,LOW);return;}String op=line;int n=1,sp=line.indexOf(' ');if(sp>0){op=line.substring(0,sp);n=line.substring(sp+1).toInt();}n=constrain(n,1,MAX_STEPS);if(op=="START"){autoMode=true;phase=0;lastScan=0;digitalWrite(LED,HIGH);}else if(op=="STOP"||op=="HOME"){autoMode=false;phase=0;stopAll();digitalWrite(LED,LOW);noTone(BUZZER);}else if(op=="FW")forward(n);else if(op=="BW")backward(n);else if(op=="LT")turnLeft(n);else if(op=="RT")turnRight(n);else if(op=="DIST"){Serial.print("FRONT ");Serial.print(readDistance(FT,FE));Serial.print(" LEFT ");Serial.print(readDistance(LT,LE));Serial.print(" RIGHT ");Serial.println(readDistance(RT,RE));}else if(op=="BEEP")beep();}
+void setup(){Serial.begin(115200);leftFront.attach(LF_PIN);rightFront.attach(RF_PIN);leftRear.attach(LR_PIN);rightRear.attach(RR_PIN);pinMode(LT,OUTPUT);pinMode(LE,INPUT);pinMode(RT,OUTPUT);pinMode(RE,INPUT);pinMode(FT,OUTPUT);pinMode(FE,INPUT);pinMode(BUZZER,OUTPUT);pinMode(LED,OUTPUT);stopAll();}
+void loop(){if(Serial.available())runCommand(Serial.readStringUntil('\n'));if(autoMode)runAuto();}

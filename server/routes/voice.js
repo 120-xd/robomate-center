@@ -87,7 +87,9 @@ router.post('/command', async (req, res) => {
 
         logger.info(`[${modelId}] AI parsed: "${text}" → [${validCommands.map(c => c.cmd).join(', ')}]`);
 
-        const code = parsed.code || generateCodeSnippet(validCommands);
+        // The snippet is explanatory only. Build it from the active profile and
+        // never let AI invent an executable method or command mapping.
+        const code = generateCodeSnippet(validCommands, profile);
 
         res.json({
             original: text,
@@ -129,9 +131,9 @@ function fallbackParse(text, profile) {
         const result = profileManager.fallbackParse(profile, text);
         return {
             original: text,
-            commands: result.commands,
+            commands: filterCommands(result.commands, profile),
             explanation: result.explanation,
-            code: generateCodeSnippet(result.commands),
+            code: generateCodeSnippet(filterCommands(result.commands, profile), profile),
             model: 'fallback-profile'
         };
     }
@@ -140,26 +142,21 @@ function fallbackParse(text, profile) {
 }
 
 /** Generate Arduino-style code snippet from commands (local fallback) */
-function generateCodeSnippet(commands) {
+function generateCodeSnippet(commands, profile) {
     if (!commands || commands.length === 0) return '';
     const lines = [];
     for (const item of commands) {
         const parts = item.cmd.split(/\s+/);
         const op = parts[0];
-        const val = parts[1] || '1';
-        switch (op) {
-            case 'FW': lines.push(`robot.forward(${val});   // 前进${val}步`); break;
-            case 'BW': lines.push(`robot.backward(${val});  // 后退${val}步`); break;
-            case 'LT': lines.push(`robot.turnLeft(${val});  // 左转${val}步`); break;
-            case 'RT': lines.push(`robot.turnRight(${val}); // 右转${val}步`); break;
-            case 'MW': lines.push('robot.moonwalk();    // 太空步'); break;
-            case 'FLAP': lines.push(`robot.flapArms(${val});   // 摆动手臂${val}下`); break;
-            case 'SWING': lines.push(`robot.swing(${val});      // 扭屁股${val}下`); break;
-            case 'WAVE': lines.push('robot.wave();        // 打招呼'); break;
-            case 'HOME': lines.push('robot.goHome();      // 归中'); break;
-            case 'TXT': { const t = item.cmd.replace(/^TXT\s+/i, ''); lines.push(`robot.display("${t}");   // 显示「${t}」`); } break;
-            case 'CLS': lines.push('robot.clearScreen(); // 清屏'); break;
-            default: lines.push(`robot.execute("${item.cmd}");`); break;
+        const val = parts[1];
+        const definition = profile?.commands?.find(c => item.cmd === c.cmd || item.cmd.startsWith(c.cmd + ' '));
+        const method = definition?.method;
+        const label = definition?.label || op;
+        const args = val && definition?.unit ? val : '';
+        if (method) {
+            lines.push(`robot.${method}(${args}); // ${label}${val && definition.unit ? val + definition.unit : ''}`);
+        } else {
+            lines.push(`robot.execute("${item.cmd.replace(/"/g, '\\"')}"); // ${label}`);
         }
     }
     return lines.join('\n');

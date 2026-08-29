@@ -4,6 +4,24 @@ const db = require('../db');
 const logger = require('../services/logger');
 const profileManager = require('../services/profileManager');
 
+function publicProfile(profile) {
+    if (!profile) return null;
+    return {
+        id: profile.id,
+        name: profile.name,
+        type: profile.type,
+        description: profile.description,
+        hardware: profile.hardware,
+        commands: profile.commands,
+        commandFormat: profile.commandFormat,
+        commandValidation: profile.commandValidation,
+        semanticRules: profile.semanticRules,
+        directionMap: profile.directionMap,
+        promptExtras: profile.promptExtras,
+        firmware: profile.firmware
+    };
+}
+
 // GET /api/health - health check
 router.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
@@ -101,14 +119,7 @@ router.get('/models/active', (req, res) => {
     try {
         const profile = profileManager.getActive();
         if (!profile) return res.status(404).json({ error: 'No active model' });
-        res.json({
-            id: profile.id,
-            name: profile.name,
-            type: profile.type,
-            description: profile.description,
-            commands: profile.commands,
-            firmware: profile.firmware
-        });
+        res.json(publicProfile(profile));
     } catch (e) {
         logger.error('Failed to get active model', { error: e.message });
         res.status(500).json({ error: e.message });
@@ -125,14 +136,7 @@ router.post('/models/select', (req, res) => {
         logger.info(`Model switched to: ${modelId} (${profile.name})`);
         res.json({
             success: true,
-            model: {
-                id: profile.id,
-                name: profile.name,
-                type: profile.type,
-                description: profile.description,
-                commands: profile.commands,
-                firmware: profile.firmware
-            }
+            model: publicProfile(profile)
         });
     } catch (e) {
         logger.error('Failed to switch model', { error: e.message });

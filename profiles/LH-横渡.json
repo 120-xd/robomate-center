@@ -1,176 +1,23 @@
 {
-  "id": "LH-横渡",
-  "name": "RoboMate-LH-横渡",
-  "type": "vehicle",
-  "description": "四舵机麦克纳姆轮小车，可全向移动：前进、后退、左右平移、旋转",
-  "hardware": {
-    "chip": "ATmega328P",
-    "protocol": "stk500v1",
-    "baudRate": 115200,
-    "communication": "串口 115200 baud，每条指令以换行符结束",
-    "components": [
-      {
-        "name": "左前轮",
-        "pin": "D2",
-        "type": "servo_360"
-      },
-      {
-        "name": "右前轮",
-        "pin": "D3",
-        "type": "servo_360"
-      },
-      {
-        "name": "左后轮",
-        "pin": "D4",
-        "type": "servo_360"
-      },
-      {
-        "name": "右后轮",
-        "pin": "D5",
-        "type": "servo_360"
-      },
-      {
-        "name": "超声波传感器",
-        "pin": "D8/D9",
-        "type": "ultrasonic"
-      }
-    ]
-  },
-  "commands": [
-    {
-      "cmd": "FW",
-      "params": "1~20",
-      "desc": "前进 N 步",
-      "method": "forward",
-      "label": "前进",
-      "unit": "步"
-    },
-    {
-      "cmd": "BW",
-      "params": "1~20",
-      "desc": "后退 N 步",
-      "method": "backward",
-      "label": "后退",
-      "unit": "步"
-    },
-    {
-      "cmd": "LT",
-      "params": "1~20",
-      "desc": "左转 N 步",
-      "method": "turnLeft",
-      "label": "左转",
-      "unit": "步"
-    },
-    {
-      "cmd": "RT",
-      "params": "1~20",
-      "desc": "右转 N 步",
-      "method": "turnRight",
-      "label": "右转",
-      "unit": "步"
-    },
-    {
-      "cmd": "SL",
-      "params": "1~20",
-      "desc": "左平移 N 步",
-      "method": "slideLeft",
-      "label": "左平移",
-      "unit": "步"
-    },
-    {
-      "cmd": "SR",
-      "params": "1~20",
-      "desc": "右平移 N 步",
-      "method": "slideRight",
-      "label": "右平移",
-      "unit": "步"
-    },
-    {
-      "cmd": "ROT",
-      "params": "1~20",
-      "desc": "原地旋转 N 步",
-      "method": "rotate",
-      "label": "旋转",
-      "unit": "步"
-    },
-    {
-      "cmd": "HOME",
-      "params": null,
-      "desc": "归中/停止",
-      "method": "goHome",
-      "label": "归中"
-    },
-    {
-      "cmd": "STOP",
-      "params": null,
-      "desc": "停止",
-      "method": "goHome",
-      "label": "停止"
-    }
-  ],
-  "commandFormat": "{CMD} {N}",
-  "commandValidation": "^(FW|BW|LT|RT|SL|SR|ROT)(\\s+\\d{1,2})?$|^(HOME|STOP)$",
-  "firmware": "firmware/LH-横渡/robot_cmd.hex",
-  "semanticRules": {
-    "defaultSteps": 1,
-    "severalSteps": 3,
-    "maxSteps": 20,
-    "shortcuts": {
-      "前进": [
-        "FW {n}"
-      ],
-      "后退": [
-        "BW {n}"
-      ],
-      "左转": [
-        "LT {n}"
-      ],
-      "右转": [
-        "RT {n}"
-      ],
-      "转一圈": [
-        "RT 4"
-      ],
-      "转个圈": [
-        "RT 4"
-      ],
-      "旋转": [
-        "RT 4"
-      ],
-      "停下": [
-        "HOME"
-      ],
-      "站住": [
-        "HOME"
-      ],
-      "归位": [
-        "HOME"
-      ],
-      "回去": [
-        "HOME"
-      ],
-      "停": [
-        "HOME"
-      ],
-      "左平移": [
-        "SL {n}"
-      ],
-      "右平移": [
-        "SR {n}"
-      ],
-      "平移": [
-        "SL {n}"
-      ],
-      "横着走": [
-        "SL {n}"
-      ],
-      "原地转": [
-        "ROT {n}"
-      ],
-      "掉头": [
-        "ROT 4"
-      ]
-    }
-  },
-  "promptExtras": "LH7 是横渡麦克纳姆轮小车，四个 360° 舵机驱动四个麦克纳姆轮，不仅可以前后左右走，还能横向平移和原地旋转，非常灵活。"
+  "id":"LH-横渡","name":"RoboMate-LH-横渡","type":"vehicle",
+  "description":"四轮麦克纳姆全向车，四个360度舵机支持前后移动、左右横移和原地旋转；上电默认前进并使用超声波避障。",
+  "hardware":{"chip":"ATmega328P","protocol":"stk500v1","baudRate":115200,"communication":"串口115200，每条命令以换行结束","components":[
+    {"name":"左前/右前/左后/右后麦克纳姆轮","pin":"D2/D3/D4/D5","type":"servo_360"},
+    {"name":"超声波传感器","pin":"D8/D9","type":"ultrasonic"}]},
+  "commands":[
+    {"cmd":"START","params":null,"desc":"启动前方超声波自动避障巡航","method":"startAuto","label":"启动巡航"},
+    {"cmd":"FW","params":"1~20","desc":"前进N步","method":"forward","label":"前进","unit":"步"},
+    {"cmd":"BW","params":"1~20","desc":"后退N步","method":"backward","label":"后退","unit":"步"},
+    {"cmd":"SL","params":"1~20","desc":"向左横移N步","method":"slideLeft","label":"左移","unit":"步"},
+    {"cmd":"SR","params":"1~20","desc":"向右横移N步","method":"slideRight","label":"右移","unit":"步"},
+    {"cmd":"LT","params":"1~20","desc":"向左转N步","method":"turnLeft","label":"左转","unit":"步"},
+    {"cmd":"RT","params":"1~20","desc":"向右转N步","method":"turnRight","label":"右转","unit":"步"},
+    {"cmd":"ROT","params":"1~20","desc":"原地旋转N步","method":"rotate","label":"原地旋转","unit":"步"},
+    {"cmd":"HOME","params":null,"desc":"四轮停止","method":"goHome","label":"归位"},
+    {"cmd":"STOP","params":null,"desc":"立即停止四轮并退出自动模式","method":"goHome","label":"停止"},
+    {"cmd":"DIST","params":null,"desc":"读取超声波距离（厘米）","method":"readDistance","label":"测距"}],
+  "commandFormat":"{CMD} {N}","commandValidation":"^(FW|BW|SL|SR|LT|RT|ROT)(\\s+\\d{1,2})?$|^(START|HOME|STOP|DIST)$",
+  "firmware":"firmware/LH-横渡/robot_cmd.hex",
+  "semanticRules":{"defaultSteps":1,"severalSteps":3,"maxSteps":20,"shortcuts":{"前进":["FW {n}"],"后退":["BW {n}"],"左移":["SL {n}"],"右移":["SR {n}"],"左转":["LT {n}"],"右转":["RT {n}"],"原地旋转":["ROT {n}"],"自动巡航":["START"],"停止":["STOP"],"测距离":["DIST"]}},
+  "promptExtras":"这是麦克纳姆轮全向车。上电后默认自动前进并用超声波避障；用户手动发送FW/BW/SL/SR/LT/RT/ROT会退出自动模式。横移使用SL/SR，不能把横移误写成转弯。"
 }

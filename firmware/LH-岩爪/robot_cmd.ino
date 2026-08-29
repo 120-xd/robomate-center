@@ -1,170 +1,26 @@
 /*
- * ============================================================
- *  RoboMate LH4 — 岩爪机器人
- * ============================================================
- *  协议: 115200 baud, {CMD} [N] + '\n'
- *  空闲时不向串口输出（避免干扰 STK500 烧录）
- * ============================================================
+ * RoboMate LH-岩爪
+ * Four two-joint legs, eight 180-degree servos:
+ * upper joints D2..D5, lower joints D6..D9
+ * Ultrasonic sensor: Trig D10, Echo D11
  */
-
 #include <Servo.h>
-
 #define MAX_STEPS 20
-#define ECHO_CMD  0
-
-const int PIN_LFU = 2;  // 左前上
-const int PIN_RFU = 3;  // 右前上
-const int PIN_LBU = 4;  // 左后上
-const int PIN_RBU = 5;  // 右后上
-const int PIN_LFD = 6;  // 左前下
-const int PIN_RFD = 7;  // 右前下
-const int PIN_LBD = 8;  // 左后下
-const int PIN_RBD = 9;  // 右后下
-const int TRIG_PIN = 10;
-const int ECHO_PIN = 11;
-
-// 180° 舵机常用角度
-const int ANGLE_CENTER = 90;
-const int ANGLE_LOW    = 45;
-const int ANGLE_HIGH   = 135;
-
-Servo LFU;  // 左前上
-Servo RFU;  // 右前上
-Servo LBU;  // 左后上
-Servo RBU;  // 右后上
-Servo LFD;  // 左前下
-Servo RFD;  // 右前下
-Servo LBD;  // 左后下
-Servo RBD;  // 右后下
-
-void setup() {
-    Serial.begin(115200);
-    LFU.attach(PIN_LFU);
-    RFU.attach(PIN_RFU);
-    LBU.attach(PIN_LBU);
-    RBU.attach(PIN_RBU);
-    LFD.attach(PIN_LFD);
-    RFD.attach(PIN_RFD);
-    LBD.attach(PIN_LBD);
-    RBD.attach(PIN_RBD);
-    pinMode(TRIG_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT);
-    home();  // 上电归位/停止
-}
-
-void loop() {
-    if (Serial.available()) {
-        String line = Serial.readStringUntil('\n');
-        line.trim();
-        if (line.length() > 0) {
-#if ECHO_CMD
-            Serial.print("[LH4] "); Serial.println(line);
-#endif
-            handleCommand(line);
-        }
-    }
-    idleBehavior();
-}
-
-void handleCommand(String line) {
-    line.toUpperCase();
-    String cmd = line;
-    int steps = 1;
-    int sp = line.indexOf(' ');
-    if (sp > 0) {
-        cmd = line.substring(0, sp);
-        steps = line.substring(sp + 1).toInt();
-    }
-    if (steps < 1) steps = 1;
-    if (steps > MAX_STEPS) steps = MAX_STEPS;
-
-    if      (cmd == "FW")   forward(steps);
-    else if (cmd == "BW")   backward(steps);
-    else if (cmd == "LT")   turnLeft(steps);
-    else if (cmd == "RT")   turnRight(steps);
-    else if (cmd == "HOME") home();
-    else if (cmd == "STOP") home();
-}
-
-// 四足 8 舵机: 每条腿分上下两节
-void home() {
-    LFU.write(90); RFU.write(90); LBU.write(90); RBU.write(90);
-    LFD.write(90); RFD.write(90); LBD.write(90); RBD.write(90);
-}
-
-void forward(int n) {
-    for(int i=0;i<n;i++){
-        LFU.write(70);  LFD.write(110); delay(100);  // 抬左前
-        LFU.write(110); LFD.write(90);  delay(150);  // 前移
-        LFU.write(90);  LFD.write(90);  delay(100);  // 放下
-        RBU.write(110); RBD.write(70);  delay(100);  // 抬右后
-        RBU.write(70);  RBD.write(90);  delay(150);  // 后移→推前
-        RBU.write(90);  RBD.write(90);  delay(100);  // 放下
-        RFU.write(110); RFD.write(70);  delay(100);  // 抬右前
-        RFU.write(70);  RFD.write(90);  delay(150);  // 前移
-        RFU.write(90);  RFD.write(90);  delay(100);  // 放下
-        LBU.write(70);  LBD.write(110); delay(100);  // 抬左后
-        LBU.write(110); LBD.write(90);  delay(150);  // 后移→推前
-        LBU.write(90);  LBD.write(90);  delay(100);  // 放下
-    }
-}
-
-void backward(int n) {
-    for(int i=0;i<n;i++){
-        LFU.write(70);  LFD.write(110); delay(100);
-        LFU.write(70);  LFD.write(90);  delay(150);
-        LFU.write(90);  LFD.write(90);  delay(100);
-        RBU.write(110); RBD.write(70);  delay(100);
-        RBU.write(110); RBD.write(90);  delay(150);
-        RBU.write(90);  RBD.write(90);  delay(100);
-        RFU.write(110); RFD.write(70);  delay(100);
-        RFU.write(110); RFD.write(90);  delay(150);
-        RFU.write(90);  RFD.write(90);  delay(100);
-        LBU.write(70);  LBD.write(110); delay(100);
-        LBU.write(70);  LBD.write(90);  delay(150);
-        LBU.write(90);  LBD.write(90);  delay(100);
-    }
-}
-
-void turnLeft(int n) {
-    for(int i=0;i<n;i++){
-        LFU.write(70);  LFD.write(110); delay(100);
-        LFU.write(70);  LFD.write(90);  delay(150);
-        LFU.write(90);  LFD.write(90);  delay(100);
-        LBU.write(70);  LBD.write(110); delay(100);
-        LBU.write(70);  LBD.write(90);  delay(150);
-        LBU.write(90);  LBD.write(90);  delay(100);
-    }
-}
-
-void turnRight(int n) {
-    for(int i=0;i<n;i++){
-        RFU.write(110); RFD.write(70);  delay(100);
-        RFU.write(110); RFD.write(90);  delay(150);
-        RFU.write(90);  RFD.write(90);  delay(100);
-        RBU.write(110); RBD.write(70);  delay(100);
-        RBU.write(110); RBD.write(90);  delay(150);
-        RBU.write(90);  RBD.write(90);  delay(100);
-    }
-}
-
-int getDistance() {
-    digitalWrite(TRIG_PIN, LOW);  delayMicroseconds(2);
-    digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
-    digitalWrite(TRIG_PIN, LOW);
-    long dur = pulseIn(ECHO_PIN, HIGH, 30000);
-    if (dur == 0) return 999;
-    return (int)(dur * 0.034 / 2);
-}
-
-unsigned long lastIdle = 0;
-void idleBehavior() {
-    if (millis() - lastIdle < 500) return;
-    lastIdle = millis();
-
-    int d = getDistance();
-    if (d > 0 && d < 20) {
-        // 遇到障碍: 后退+左转+蜂鸣
-        if (d < 10) { backward(1); turnLeft(2); }
-    }
-}
+#define HOME_ANGLE 90
+#define LIFT_ANGLE 65
+#define STEP_MS 180
+const byte upperPin[4]={2,3,4,5},lowerPin[4]={6,7,8,9},TRIG_PIN=10,ECHO_PIN=11;
+Servo upper[4],lower[4];
+bool autoMode=true; unsigned long lastScan=0;
+String pendingCommand="";
+void home(){for(byte i=0;i<4;i++){upper[i].write(HOME_ANGLE);lower[i].write(HOME_ANGLE);}}
+void pose(byte u0,byte u1,byte u2,byte u3,byte l0,byte l1,byte l2,byte l3){upper[0].write(u0);upper[1].write(u1);upper[2].write(u2);upper[3].write(u3);lower[0].write(l0);lower[1].write(l1);lower[2].write(l2);lower[3].write(l3);}
+void waitStep(unsigned long ms){unsigned long t=millis();while(millis()-t<ms){if(Serial.available()){String s=Serial.readStringUntil('\n');s.trim();s.toUpperCase();if(s=="STOP"||s=="HOME"){autoMode=false;home();return;}if(s.length())pendingCommand=s;}delay(5);}}
+void gait(bool reverse){for(byte phase=0;phase<2;phase++){byte swing=(phase==0)?(reverse?HOME_ANGLE:LIFT_ANGLE):(reverse?LIFT_ANGLE:HOME_ANGLE);byte support=(phase==0)?(reverse?LIFT_ANGLE:HOME_ANGLE):(reverse?HOME_ANGLE:LIFT_ANGLE);pose(swing,support,support,swing,swing,support,support,swing);waitStep(STEP_MS);home();waitStep(70);}}
+void walk(int n,bool reverse){for(int i=0;i<n;i++)gait(reverse);}
+void turn(int n,bool right){for(int i=0;i<n;i++){if(right)pose(LIFT_ANGLE,HOME_ANGLE,LIFT_ANGLE,HOME_ANGLE,HOME_ANGLE,LIFT_ANGLE,HOME_ANGLE,LIFT_ANGLE);else pose(HOME_ANGLE,LIFT_ANGLE,HOME_ANGLE,LIFT_ANGLE,LIFT_ANGLE,HOME_ANGLE,LIFT_ANGLE,HOME_ANGLE);waitStep(STEP_MS);home();waitStep(70);}}
+int distanceCm(){digitalWrite(TRIG_PIN,LOW);delayMicroseconds(2);digitalWrite(TRIG_PIN,HIGH);delayMicroseconds(10);digitalWrite(TRIG_PIN,LOW);unsigned long us=pulseIn(ECHO_PIN,HIGH,30000UL);return us?(int)(us*0.0343f/2.0f):999;}
+void runAuto(){if(millis()-lastScan<250)return;lastScan=millis();if(distanceCm()<20){turn(1,true);}else walk(1,false);}
+void runCommand(String line){line.trim();line.toUpperCase();if(!line.length())return;String op=line;int n=1,sp=line.indexOf(' ');if(sp>0){op=line.substring(0,sp);n=line.substring(sp+1).toInt();}n=constrain(n,1,MAX_STEPS);if(op=="START"){autoMode=true;lastScan=0;}else if(op=="FW"){autoMode=false;walk(n,false);}else if(op=="BW"){autoMode=false;walk(n,true);}else if(op=="LT"){autoMode=false;turn(n,false);}else if(op=="RT"){autoMode=false;turn(n,true);}else if(op=="HOME"||op=="STOP"){autoMode=false;home();}else if(op=="DIST"){Serial.print("DIST ");Serial.println(distanceCm());}}
+void setup(){Serial.begin(115200);for(byte i=0;i<4;i++){upper[i].attach(upperPin[i]);lower[i].attach(lowerPin[i]);}pinMode(TRIG_PIN,OUTPUT);pinMode(ECHO_PIN,INPUT);home();}
+void loop(){if(pendingCommand.length()){String s=pendingCommand;pendingCommand="";runCommand(s);}if(Serial.available())runCommand(Serial.readStringUntil('\n'));if(autoMode)runAuto();}

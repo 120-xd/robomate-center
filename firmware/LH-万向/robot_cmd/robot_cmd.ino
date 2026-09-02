@@ -2,7 +2,7 @@
  * ============================================================
  *  RoboMate LH3 — 万向机器人（全向轮三轮）
  * ============================================================
- *  默认行为: 自动巡航前进，遇障后退+左转避障
+ *  默认行为: 自动巡航前进，遇障左转约90°并重复检测
  *  协议: 115200 baud, {CMD} [N] + '\n'
  *  调试: 打开串口监视器(115200)可看到状态变化
  * ============================================================
@@ -23,12 +23,16 @@ const int ECHO_PIN = 9;
 Servo sL, sR, sB;
 
 // ---------- 自动巡航状态机 ----------
-// 状态: 0=巡航 1=停 2=后退 3=停 4=左转 5=停
+// 状态: 0=巡航 1=转弯前停止 2=左转90度 3=转弯后停止并复测
 int avoidPhase = 0;
 unsigned long phaseStart = 0;
 unsigned long lastScan = 0;
 const unsigned long SCAN_INTERVAL = 300;
 const int OBSTACLE_CM = 20;
+const unsigned long OBSTACLE_STOP_MS = 200;
+// 旧逻辑实测 1500ms 约等于 405°，90°约为333ms，这里取330ms。
+const unsigned long TURN_90_MS = 330;
+const unsigned long TURN_SETTLE_MS = 200;
 
 void setup() {
     Serial.begin(115200);
@@ -107,14 +111,30 @@ void runAutoCruise() {
         }
         moveForward();
     }
-    else if (avoidPhase >= 1 && avoidPhase <= 6) {
+    else if (avoidPhase == 3) {
+        // 转弯后先停稳，再测量前方；仍有障碍就继续左转90度。
+        stopAll();
+        if (now - phaseStart >= TURN_SETTLE_MS) {
+            int checkDistance = getDistance();
+            if (checkDistance > 0 && checkDistance < OBSTACLE_CM) {
+                Serial.println("[avoid] still blocked, turn left 90 again");
+                avoidPhase = 2;
+                phaseStart = now;
+            } else {
+                Serial.println("[avoid] path clear, resume forward");
+                avoidPhase = 0;
+                lastScan = now;
+            }
+        }
+    }
+    else if (avoidPhase >= 1 && avoidPhase <= 2) {
         // ---------- 避障序列 ----------
         unsigned long t = now - phaseStart;
 
         switch (avoidPhase) {
             case 1:  // 阶段1: 急停 200ms
                 stopAll();
-                if (t >= 200) {
+                if (t >= OBSTACLE_STOP_MS) {
                     Serial.println("[避障] 开始后退");
                     avoidPhase = 2;
                     phaseStart = now;
@@ -122,8 +142,8 @@ void runAutoCruise() {
                 break;
 
             case 2:  // 阶段2: 后退 1000ms
-                moveBackward();
-                if (t >= 1000) {
+                moveTurnLeft();
+                if (t >= TURN_90_MS) {
                     Serial.println("[避障] 后退完成，准备左转");
                     avoidPhase = 3;
                     phaseStart = now;

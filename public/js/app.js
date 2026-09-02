@@ -253,26 +253,35 @@ const App = (() => {
 
     // ========== Model Management ==========
     let welcomeShown = false;
+    const ACTIVE_MODEL_STORAGE_KEY = 'robomate.activeModelId';
 
     async function loadModels() {
         try {
             const resp = await fetch(state.apiBase + '/models');
             const result = await resp.json();
             if (result && result.models) {
-                populateModelSelector(result.models);
+                const savedId = localStorage.getItem(ACTIVE_MODEL_STORAGE_KEY);
+                const savedModel = result.models.find(m => m.id === savedId);
+                populateModelSelector(result.models, savedModel ? savedId : '');
+
+                // Do not trust the server-wide active model. Restore the
+                // model selected in this browser and keep requests scoped to it.
+                if (savedModel) await switchModel(savedId);
+                else if (savedId) localStorage.removeItem(ACTIVE_MODEL_STORAGE_KEY);
             }
         } catch (e) {
             els.modelSelect.innerHTML = '<option value="">请选择机器人型号</option>';
         }
     }
 
-    function populateModelSelector(models) {
+    function populateModelSelector(models, selectedId = '') {
         if (!els.modelSelect) return;
         els.modelSelect.innerHTML = '<option value="">请选择机器人型号</option>';
         for (const m of models) {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = m.name;
+            opt.selected = m.id === selectedId;
             els.modelSelect.appendChild(opt);
         }
     }
@@ -310,6 +319,7 @@ const App = (() => {
             const result = await resp.json();
             if (result.success) {
                 state.activeModel = result.model;
+                localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, result.model.id);
                 refreshModelUI();
                 welcomeShown = false; // allow new welcome for new model
                 showWelcomeMessage();
@@ -525,7 +535,16 @@ const App = (() => {
 
     // Shared: send text to backend AI, then typewriter code → progress → execute
     async function sendToAI(text, source) {
-        const result = await apiPost('/voice/command', { text });
+        if (!state.activeModel?.id) {
+            addChatMessage('system', '请先选择机器人型号，再发送控制指令');
+            els.mainTip.innerText = '请先选择机器人型号';
+            return;
+        }
+
+        const result = await apiPost('/voice/command', {
+            text,
+            modelId: state.activeModel.id
+        });
 
         if (!result) {
             // Backend not available — use local fallback

@@ -17,12 +17,31 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
  * Returns: { commands: [{cmd: "FW 3"}], explanation: "...", code: "robot.forward(3);", modelId: "LH1" }
  */
 router.post('/command', async (req, res) => {
+    const requestedModelId = typeof req.body?.modelId === 'string'
+        ? req.body.modelId.trim()
+        : '';
+
     try {
         const { text } = req.body;
         if (!text) return res.status(400).json({ error: 'text is required', commands: [] });
 
-        const profile = profileManager.getActive();
-        const modelId = profile ? profile.id : 'unknown';
+        // The model must be selected per request. Using the process-wide
+        // activeId here lets one browser change another browser's AI profile.
+        if (!requestedModelId) {
+            return res.status(400).json({
+                error: 'modelId is required; please select a robot first',
+                commands: []
+            });
+        }
+
+        const profile = profileManager.get(requestedModelId);
+        if (!profile) {
+            return res.status(400).json({
+                error: `Unknown model: ${requestedModelId}`,
+                commands: []
+            });
+        }
+        const modelId = profile.id;
 
         logger.info(`[${modelId}] Voice input: "${text}"`);
 
@@ -103,9 +122,13 @@ router.post('/command', async (req, res) => {
 
     } catch (e) {
         logger.error('Voice command error', { error: e.message });
-        const profile = profileManager.getActive();
+        const profile = requestedModelId ? profileManager.get(requestedModelId) : null;
         const result = fallbackParse(req.body?.text || '', profile);
-        res.json({ ...result, modelId: profile?.id || 'unknown' });
+        res.status(profile ? 200 : 400).json({
+            ...result,
+            modelId: profile?.id || 'unknown',
+            error: profile ? result.error : 'Please select a robot model first'
+        });
     }
 });
 

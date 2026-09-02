@@ -124,7 +124,7 @@
     {
       "cmd": "WAVE",
       "params": null,
-      "desc": "打招呼（挥动一只手）",
+      "desc": "打招呼（双手挥动）",
       "method": "wave",
       "label": "打招呼"
     }

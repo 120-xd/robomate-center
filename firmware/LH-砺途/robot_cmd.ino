@@ -13,8 +13,8 @@
 #define TURN_MS         450
 #define TURN_AROUND_MS  900
 #define FRONT_SAFE_CM   30
-#define SIDE_SAFE_CM    15
-#define SIDE_MIN_CM     8
+#define SIDE_SAFE_CM    30
+#define SIDE_MIN_CM     25
 #define BACKUP_MS       500
 #define STOP_DELAY_MS   200
 #define CLEAR_DELAY_MS  300

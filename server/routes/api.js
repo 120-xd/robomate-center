@@ -107,18 +107,23 @@ router.post('/events', (req, res) => {
 router.get('/models', (req, res) => {
     try {
         const models = profileManager.list();
-        res.json({ models, active: profileManager.activeId });
+        // Selection is local to each browser/request, never process-wide.
+        res.json({ models, active: null });
     } catch (e) {
         logger.error('Failed to list models', { error: e.message });
         res.status(500).json({ error: e.message });
     }
 });
 
-// GET /api/models/active - get current active model
+// GET /api/models/active - compatibility endpoint requiring an explicit modelId
 router.get('/models/active', (req, res) => {
     try {
-        const profile = profileManager.getActive();
-        if (!profile) return res.status(404).json({ error: 'No active model' });
+        const modelId = typeof req.query.modelId === 'string' ? req.query.modelId.trim() : '';
+        if (!modelId) {
+            return res.status(400).json({ error: 'modelId query parameter is required' });
+        }
+        const profile = profileManager.get(modelId);
+        if (!profile) return res.status(404).json({ error: `Unknown model: ${modelId}` });
         res.json(publicProfile(profile));
     } catch (e) {
         logger.error('Failed to get active model', { error: e.message });
@@ -126,14 +131,27 @@ router.get('/models/active', (req, res) => {
     }
 });
 
-// POST /api/models/select - switch active model
+// GET /api/models/:modelId - get one explicit model profile
+router.get('/models/:modelId', (req, res) => {
+    try {
+        const modelId = decodeURIComponent(req.params.modelId);
+        const profile = profileManager.get(modelId);
+        if (!profile) return res.status(404).json({ error: `Unknown model: ${modelId}` });
+        res.json(publicProfile(profile));
+    } catch (e) {
+        logger.error('Failed to get model profile', { error: e.message });
+        res.status(400).json({ error: 'Invalid model id' });
+    }
+});
+
+// POST /api/models/select - validate and return a model (stateless)
 router.post('/models/select', (req, res) => {
     try {
         const { modelId } = req.body;
         if (!modelId) return res.status(400).json({ error: 'modelId is required' });
 
         const profile = profileManager.setActive(modelId);
-        logger.info(`Model switched to: ${modelId} (${profile.name})`);
+        logger.info(`Model selected: ${modelId} (${profile.name})`);
         res.json({
             success: true,
             model: publicProfile(profile)

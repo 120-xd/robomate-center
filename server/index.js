@@ -57,7 +57,7 @@ async function start() {
         logger.info('  RoboMate Control Center v1.0');
         logger.info(`  http://localhost:${PORT}`);
         logger.info(`  Environment: ${process.env.NODE_ENV || 'development'}`);
-        logger.info(`  Models: ${profileManager.list().map(m => m.id).join(', ')} (active: ${profileManager.activeId})`);
+        logger.info(`  Models: ${profileManager.list().map(m => m.id).join(', ')} (request-scoped selection)`);
         logger.info('========================================');
 
         // Check voice service

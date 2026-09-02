@@ -10,7 +10,6 @@ const logger = require('./logger');
 class ProfileManager {
     constructor() {
         this.profiles = new Map();
-        this.activeId = null;
         this.profilesDir = path.join(__dirname, '..', '..', 'profiles');
     }
 
@@ -42,12 +41,9 @@ class ProfileManager {
             }
         }
 
-        // Default active = first loaded
-        if (!this.activeId && this.profiles.size > 0) {
-            this.activeId = this.profiles.keys().next().value;
-        }
-
-        logger.info(`ProfileManager: ${this.profiles.size} profiles loaded, active=${this.activeId}`);
+        // Model selection is request-scoped. Do not keep a process-wide
+        // active model because multiple browsers may use this server.
+        logger.info(`ProfileManager: ${this.profiles.size} profiles loaded`);
     }
 
     /** 获取指定机型 */
@@ -64,16 +60,10 @@ class ProfileManager {
                 name: p.name,
                 type: p.type,
                 description: p.description,
-                active: id === this.activeId
+                active: false
             });
         }
         return result;
-    }
-
-    /** 获取当前激活的机型 */
-    getActive() {
-        if (!this.activeId) return null;
-        return this.profiles.get(this.activeId) || null;
     }
 
     /** 切换当前机型 */
@@ -81,8 +71,7 @@ class ProfileManager {
         if (!this.profiles.has(id)) {
             throw new Error(`Unknown model: ${id}. Available: ${[...this.profiles.keys()].join(', ')}`);
         }
-        this.activeId = id;
-        logger.info(`Model switched to: ${id}`);
+        logger.info(`Model selected for request: ${id}`);
         return this.profiles.get(id);
     }
 

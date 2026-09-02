@@ -5,7 +5,7 @@ const profileManager = require('../services/profileManager');
 
 // ============================================================
 // AI 语义理解 — deepseek-v4-pro Agent
-// 根据当前激活的机器人机型动态生成系统提示词
+// 根据请求指定的机器人机型动态生成系统提示词
 // ============================================================
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
@@ -52,7 +52,7 @@ router.post('/command', async (req, res) => {
             return res.json({ ...result, modelId });
         }
 
-        // Generate system prompt from active profile
+        // Generate system prompt from the request-scoped profile
         const systemPrompt = profile
             ? profileManager.generateSystemPrompt(profile)
             : getDefaultPrompt();
@@ -134,7 +134,7 @@ router.post('/command', async (req, res) => {
 
 // ========== Helpers ==========
 
-/** Filter and normalize commands against the active profile's validation pattern */
+/** Filter and normalize commands against the request-scoped profile */
 function filterCommands(commands, profile) {
     const validationPattern = profileManager.getCommandValidation(profile);
 

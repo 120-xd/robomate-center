@@ -264,8 +264,8 @@ const App = (() => {
                 const savedModel = result.models.find(m => m.id === savedId);
                 populateModelSelector(result.models, savedModel ? savedId : '');
 
-                // Do not trust the server-wide active model. Restore the
-                // model selected in this browser and keep requests scoped to it.
+                // Restore the model selected in this browser. The server does
+                // not have a shared active model.
                 if (savedModel) await switchModel(savedId);
                 else if (savedId) localStorage.removeItem(ACTIVE_MODEL_STORAGE_KEY);
             }
@@ -286,16 +286,14 @@ const App = (() => {
         }
     }
 
-    async function refreshActiveModel() {
+    async function loadModelProfile(modelId) {
         try {
-            const resp = await fetch(state.apiBase + '/models/active');
+            const resp = await fetch(state.apiBase + '/models/' + encodeURIComponent(modelId));
+            if (!resp.ok) return null;
             const model = await resp.json();
-            if (model && model.id) {
-                state.activeModel = model;
-                refreshModelUI();
-            }
+            return model && model.id ? model : null;
         } catch (e) {
-            // Backend not available
+            return null;
         }
     }
 
@@ -311,18 +309,15 @@ const App = (() => {
     async function switchModel(modelId) {
         if (!modelId || modelId === state.activeModel?.id) return;
         try {
-            const resp = await fetch(state.apiBase + '/models/select', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ modelId })
-            });
-            const result = await resp.json();
-            if (result.success) {
-                state.activeModel = result.model;
-                localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, result.model.id);
+            const model = await loadModelProfile(modelId);
+            if (model) {
+                state.activeModel = model;
+                localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, model.id);
                 refreshModelUI();
                 welcomeShown = false; // allow new welcome for new model
                 showWelcomeMessage();
+            } else {
+                addChatMessage('system', '机型加载失败');
             }
         } catch (e) {
             addChatMessage('system', '切换机型失败');
@@ -541,10 +536,20 @@ const App = (() => {
             return;
         }
 
+        // Keep parsing and execution tied to the same model. If the user
+        // switches models while AI is responding, discard the stale result.
+        const requestModelId = state.activeModel.id;
+
         const result = await apiPost('/voice/command', {
             text,
-            modelId: state.activeModel.id
+            modelId: requestModelId
         });
+
+        if (state.activeModel?.id !== requestModelId) {
+            addChatMessage('system', '机型已切换，已取消上一条指令');
+            els.mainTip.innerText = '等待新指令';
+            return;
+        }
 
         if (!result) {
             // Backend not available — use local fallback
@@ -616,7 +621,7 @@ const App = (() => {
     function localParseVoice(text) {
         const plain = text.trim().replace(/[，,。；;！!？?]/g, '');
         const number = (plain.match(/(\d+)/) || [])[1] || (state.activeModel?.semanticRules?.defaultSteps || 1);
-        // Keep the offline fallback useful even when /models/active is unavailable.
+        // Keep the offline fallback useful when the backend is unavailable.
         if (/自动|自主/.test(plain) && /爬行|避障/.test(plain)) return 'START';
         if (/测距|距离|多远/.test(plain)) return 'DIST';
         if (/停止|停下/.test(plain)) return 'STOP';

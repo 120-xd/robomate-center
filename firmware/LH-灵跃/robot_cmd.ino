@@ -7,8 +7,8 @@
  *  空闲时不向串口输出（避免干扰 STK500 烧录）
  *
  *  【指令集】
- *    FW     1~20  前进 N 步
- *    BW     1~20  后退 N 步
+ *    FW     1~20  前进 N 步（按当前安装方向使用 BACKWARD）
+ *    BW     1~20  后退 N 步（按当前安装方向使用 FORWARD）
  *    LT     1~20  左转 N 步
  *    RT     1~20  右转 N 步
  *    HOME   -     归中/停止
@@ -249,7 +249,7 @@ void loop() {
             if (*p) handleCommand(p);
         }
     } else if (autoForward) {
-        otto1.walk(1, 750, FORWARD);   // 无指令时默认前进
+            otto1.walk(1, 750, BACKWARD);  // 无指令时默认前进
     }
 }
 
@@ -289,8 +289,8 @@ void handleCommand(const char* line) {
     if (steps < 1) steps = 1;
     if (steps > MAX_STEPS) steps = MAX_STEPS;
 
-    if      (strcmp(head, "FW")   == 0) { otto1.walk(steps, 750, FORWARD);  autoForward = true; }
-    else if (strcmp(head, "BW")   == 0) { otto1.walk(steps, 750, BACKWARD); autoForward = true; }
+    if      (strcmp(head, "FW")   == 0) { otto1.walk(steps, 750, BACKWARD); autoForward = true; }
+    else if (strcmp(head, "BW")   == 0) { otto1.walk(steps, 750, FORWARD);  autoForward = true; }
     else if (strcmp(head, "LT")   == 0) { otto1.turn(steps, 2000, LEFT);    autoForward = true; }
     else if (strcmp(head, "RT")   == 0) { otto1.turn(steps, 2000, RIGHT);   autoForward = true; }
     else if (strcmp(head, "HOME") == 0) { otto1.home(); autoForward = false; }
